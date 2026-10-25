@@ -39,14 +39,20 @@ public final class Ordenador {
      * regla AVISAR → avisar(...); regla MOVER → mover(...).
      */
     public Resultado procesar(Path archivo) throws IOException {
-        // TODO T05a
-        throw new UnsupportedOperationException();
+        String nombre = archivo.getFileName().toString();
+        if (!Files.isRegularFile(archivo) || Nombres.esTemporal(nombre)) return new Resultado(archivo, Resultado.Estado.IGNORADO, null, null);
+        Optional<Coincidencia> c = Clasificador.clasificar(nombre, config.reglas());
+        if (c.isEmpty()) return new Resultado(archivo, Resultado.Estado.SIN_REGLA, null, null);
+        if (c.get().regla().accion() == Accion.AVISAR) return avisar(archivo, c.get());
+        return mover(archivo, c.get());
     }
 
     /** Regla AVISAR: no mueve; notifica (si no se simula) y devuelve AVISADO con el mensaje. */
     private Resultado avisar(Path archivo, Coincidencia c) {
-        // TODO T05a
-        throw new UnsupportedOperationException();
+        String palabra = c.palabra() == null ? "" : c.palabra();
+        String mensaje = c.regla().mensaje().replace("{palabra}", palabra);
+        if (!simular) notificador.notificar("Ordenador", archivo.getFileName() + ": " + mensaje);
+        return new Resultado(archivo, Resultado.Estado.AVISADO, null, mensaje);
     }
 
     /** Regla MOVER: mueve sin pisar, anota y notifica; simulando, solo devuelve lo que haría. */
@@ -60,7 +66,7 @@ public final class Ordenador {
      * ordenados por nombre; las subcarpetas no se tocan. Lista vacía si la carpeta no existe.
      */
     public List<Resultado> ordenarCarpeta() throws IOException {
-        // TODO T05c
-        throw new UnsupportedOperationException();
+        // lo completa otra subtarea (T05c): no lo cambies
+        throw new UnsupportedOperationException("T05c");
     }
 }

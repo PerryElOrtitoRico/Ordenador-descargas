@@ -40,12 +40,26 @@ class OrdenadorTest {
 
     @Test
     void avisarNoMueve() throws Exception {
-        // TODO T05a
+        Path archivo = descargas.resolve("Fisica_TP1.pdf");
+        Files.writeString(archivo, "contenido");
+        
+        Resultado r = ordenador(false).procesar(archivo);
+        
+        assertEquals(Resultado.Estado.AVISADO, r.estado());
+        assertEquals("Subilo a FISICA/teoria", r.mensaje());
+        assertTrue(Files.exists(archivo));
+        assertEquals(List.of("Fisica_TP1.pdf: Subilo a FISICA/teoria"), avisos);
     }
 
     @Test
     void temporalIgnoradoYSinRegla() throws Exception {
-        // TODO T05a
+        Path part = Files.writeString(descargas.resolve("video.mp4.part"), "x");
+        Path nada = Files.writeString(descargas.resolve("nada.xyz"), "x");
+        assertEquals(Resultado.Estado.IGNORADO, ordenador(false).procesar(part).estado());
+        assertEquals(Resultado.Estado.SIN_REGLA, ordenador(false).procesar(nada).estado());
+        assertTrue(Files.exists(part));
+        assertTrue(Files.exists(nada));
+        assertEquals(List.of(), avisos);
     }
 
     @Test
