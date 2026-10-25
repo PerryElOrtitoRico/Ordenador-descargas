@@ -14,55 +14,11 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Test oculto de T04: no se le muestra al LLM. */
-class T04RegistroOcultoTest {
+/** Test oculto de T04c: no se le muestra al LLM. */
+class T04cDeshacerOcultoTest {
+
 
     private static final Path HOME = Path.of("/home/f");
-
-    @Test
-    void rutasXdg() {
-        assertEquals(Path.of("/home/f/.config/ordenador/reglas.json"), Rutas.config(Map.of(), HOME));
-        assertEquals(Path.of("/x/ordenador/reglas.json"), Rutas.config(Map.of("XDG_CONFIG_HOME", "/x"), HOME));
-        assertEquals(Path.of("/home/f/.config/ordenador/reglas.json"), Rutas.config(Map.of("XDG_CONFIG_HOME", ""), HOME));
-        assertEquals(Path.of("/home/f/.local/share/ordenador/movimientos.log"), Rutas.registro(Map.of(), HOME));
-        assertEquals(Path.of("/home/f/.local/share/ordenador/movimientos.log"), Rutas.registro(Map.of("XDG_DATA_HOME", ""), HOME));
-        assertEquals(Path.of("/d/ordenador/movimientos.log"), Rutas.registro(Map.of("XDG_DATA_HOME", "/d"), HOME));
-    }
-
-    @Test
-    void expandir() {
-        assertEquals(Path.of("/home/f/Imágenes"), Rutas.expandir("~/Imágenes", HOME));
-        assertEquals(HOME, Rutas.expandir("~", HOME));
-        assertEquals(Path.of("/home/f/Documentos/Carpeta personal/Gimnasio"),
-                Rutas.expandir("~/Documentos/Carpeta personal/Gimnasio", HOME));
-        assertEquals(Path.of("/tmp/a"), Rutas.expandir("/tmp/a", HOME));
-        var e = assertThrows(IllegalArgumentException.class, () -> Rutas.expandir("Descargas", HOME));
-        assertTrue(e.getMessage().contains("Descargas"));
-        assertThrows(IllegalArgumentException.class, () -> Rutas.expandir("~otro/x", HOME));
-    }
-
-    @Test
-    void anotarYLeerEnOrden(@TempDir Path d) throws Exception {
-        Registro r = new Registro(d.resolve("datos/ordenador/movimientos.log"));
-        assertEquals(List.of(), r.leer());
-        Movimiento m1 = new Movimiento(LocalDateTime.of(2026, 10, 25, 10, 0), d.resolve("Descargas/a b.pdf"), d.resolve("X/a b.pdf"));
-        Movimiento m2 = new Movimiento(LocalDateTime.of(2026, 10, 25, 10, 5, 30, 123_000_000), d.resolve("Descargas/c.png"), d.resolve("Imágenes/c (2).png"));
-        r.anotar(m1);
-        r.anotar(m2);
-        assertEquals(List.of(m1, m2), r.leer());
-        assertEquals(List.of(m1, m2), new Registro(d.resolve("datos/ordenador/movimientos.log")).leer());
-        String linea = Files.readAllLines(d.resolve("datos/ordenador/movimientos.log")).get(0);
-        assertEquals(m1.fecha() + "\t" + m1.origen() + "\t" + m1.destino(), linea);
-    }
-
-    @Test
-    void leerIgnoraLineasMalas(@TempDir Path d) throws Exception {
-        Path log = d.resolve("m.log");
-        Files.writeString(log, "\nbasura\n2026-13-45T10:00\t/a\t/b\n2026-10-25T10:00\t/a/x\t/b/x\n   \n");
-        List<Movimiento> ms = new Registro(log).leer();
-        assertEquals(1, ms.size());
-        assertEquals(Path.of("/a/x"), ms.get(0).origen());
-    }
 
     @Test
     void deshacerVuelveYSacaLaLinea(@TempDir Path d) throws Exception {
