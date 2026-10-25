@@ -1,7 +1,7 @@
 package com.ordenador.service;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.LinkOption;
 import java.nio.file.Files;
 import java.text.Normalizer;
 import java.util.Locale;
@@ -87,60 +87,23 @@ public final class Nombres {
     /** carpeta.resolve(nombre) si no existe ese archivo; si existe, la primera libre de
      *  "base (2).ext", "base (3).ext", … (base = nombre sin la extensión de extension()). */
     public static Path nombreLibre(Path carpeta, String nombre) {
-        if (carpeta == null || nombre == null) {
-            return Paths.get(""); 
+        Path directo = carpeta.resolve(nombre);
+        if (!Files.exists(directo, LinkOption.NOFOLLOW_LINKS)) {
+            return directo;
         }
-
-        // Verificar existencia usando Files.exists
-        Path rutaExistente = carpeta.resolve(nombre);
-        
-        // Si no existe, devolver directamente
-        if (!Files.exists(rutaExistente)) {
-            return rutaExistente;
+        // El nombre se conserva tal cual (mayúsculas, guiones, puntos): solo se agrega " (n)" antes de la extensión.
+        String base = nombre;
+        String sufijo = "";
+        if (!extension(nombre).isEmpty()) {
+            int punto = nombre.lastIndexOf('.');
+            base = nombre.substring(0, punto);
+            sufijo = nombre.substring(punto);
         }
-
-        String nombreNormalizado = normalizar(nombre);
-        String ext = extension(nombre);
-        
-        // Base es el nombre sin la extensión. 
-        // Ejemplo: "backup.tar.gz" -> ext="gz", base="backup.tar"
-        // Ejemplo: "foto.JPG" -> ext="jpg", base="foto"
-        
-        String base;
-        if (ext.isEmpty()) {
-            // Si no hay extensión, la base es el nombre completo.
-            base = nombreNormalizado;
-        } else {
-            // Quitar la extensión del nombre normalizado para obtener la base
-            int ultimoPunto = nombre.lastIndexOf('.');
-            if (ultimoPunto > 0) {
-                base = nombre.substring(0, ultimoPunto);
-            } else {
-                base = nombre;
-            }
-        }
-
-        String baseNormalizada = normalizar(base);
-        
-        // Generar nombres candidatos: "base (2).ext", "base (3).ext"...
-        int contador = 2;
-        while (true) {
-            String candidatoNombre;
-            if (ext.isEmpty()) {
-                candidatoNombre = baseNormalizada + " (" + contador + ")";
-            } else {
-                // La extensión se mantiene tal cual en el nombre final.
-                String extOriginal = nombre.substring(nombre.lastIndexOf('.') + 1);
-                candidatoNombre = baseNormalizada + " (" + contador + ")." + extOriginal;
-            }
-
-            Path candidato = carpeta.resolve(candidatoNombre);
-            
-            if (!Files.exists(candidato)) {
+        for (int n = 2; ; n++) {
+            Path candidato = carpeta.resolve(base + " (" + n + ")" + sufijo);
+            if (!Files.exists(candidato, LinkOption.NOFOLLOW_LINKS)) {
                 return candidato;
             }
-            
-            contador++;
         }
     }
 }

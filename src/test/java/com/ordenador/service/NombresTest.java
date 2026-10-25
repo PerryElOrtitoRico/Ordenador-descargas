@@ -1,161 +1,54 @@
 package com.ordenador.service;
 
-import java.nio.file.Path;
-import java.nio.file.Files;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import static org.junit.jupiter.api.Assertions.*;
 
-public class NombresTest {
+class NombresTest {
 
     @Test
-    public void testNormalizarConAcentosYGuiones() {
-        String input = "  Cálculo_Numérico--Tema 3.PDF ";
-        String expected = "calculo numerico tema 3 pdf";
-        assertEquals(expected, Nombres.normalizar(input));
+    void normalizar() {
+        assertEquals("calculo numerico tema 3 pdf", Nombres.normalizar("  Cálculo_Numérico--Tema 3.PDF "));
+        assertEquals("mecanica de fluidos", Nombres.normalizar("MECÁNICA DE FLUIDOS"));
     }
 
     @Test
-    public void testNormalizarMayusculas() {
-        String input = "MECÁNICA DE FLUIDOS";
-        String expected = "mecanica de fluidos";
-        assertEquals(expected, Nombres.normalizar(input));
+    void extension() {
+        assertEquals("jpg", Nombres.extension("foto.JPG"));
+        assertEquals("gz", Nombres.extension("backup.tar.gz"));
+        assertEquals("", Nombres.extension("LEEME"));
+        assertEquals("", Nombres.extension(".bashrc"));
+        assertEquals("", Nombres.extension("raro."));
     }
 
     @Test
-    public void testExtensionConPuntoMayusculo() {
-        String input = "foto.JPG";
-        String expected = "jpg";
-        assertEquals(expected, Nombres.extension(input));
+    void esTemporal() {
+        assertTrue(Nombres.esTemporal("video.mp4.part"));
+        assertTrue(Nombres.esTemporal("x.CRDOWNLOAD"));
+        assertTrue(Nombres.esTemporal(".~lock.doc#"));
+        assertFalse(Nombres.esTemporal("partido.pdf"));
     }
 
     @Test
-    public void testExtensionConMultiplePuntos() {
-        String input = "backup.tar.gz";
-        String expected = "gz";
-        assertEquals(expected, Nombres.extension(input));
+    void nombreLibreNumeraSinCambiarElNombre(@TempDir Path c) throws Exception {
+        assertEquals(c.resolve("a.pdf"), Nombres.nombreLibre(c, "a.pdf"));
+        Files.createFile(c.resolve("a.pdf"));
+        Files.createFile(c.resolve("a (2).pdf"));
+        assertEquals(c.resolve("a (3).pdf"), Nombres.nombreLibre(c, "a.pdf"));
+        Files.createFile(c.resolve("LEEME"));
+        assertEquals(c.resolve("LEEME (2)"), Nombres.nombreLibre(c, "LEEME"));
+        Files.createFile(c.resolve("backup.tar.gz"));
+        assertEquals(c.resolve("backup.tar (2).gz"), Nombres.nombreLibre(c, "backup.tar.gz"));
+        Files.createFile(c.resolve("Mi_Foto.PNG"));
+        assertEquals(c.resolve("Mi_Foto (2).PNG"), Nombres.nombreLibre(c, "Mi_Foto.PNG"));
     }
 
     @Test
-    public void testExtensionSinExtencion() {
-        String input = "LEEME";
-        String expected = "";
-        assertEquals(expected, Nombres.extension(input));
-    }
-
-    @Test
-    public void testExtensionConPuntoInicial() {
-        String input = ".bashrc";
-        String expected = "";
-        assertEquals(expected, Nombres.extension(input));
-    }
-
-    @Test
-    public void testExtensionTerminaEnPunto() {
-        String input = "raro.";
-        String expected = "";
-        assertEquals(expected, Nombres.extension(input));
-    }
-
-    @Test
-    public void testEsTemporalPart() {
-        String input = "video.mp4.part";
-        assertTrue(Nombres.esTemporal(input));
-    }
-
-    @Test
-    public void testEsTemporalCrdownload() {
-        String input = "x.CRDOWNLOAD";
-        assertTrue(Nombres.esTemporal(input));
-    }
-
-    @Test
-    public void testEsTemporalLock() {
-        String input = ".~lock.doc#";
-        assertTrue(Nombres.esTemporal(input));
-    }
-
-    @Test
-    public void testEsTemporalNormal() {
-        String input = "partido.pdf";
-        assertFalse(Nombres.esTemporal(input));
-    }
-
-    @Test
-    public void testNombreLibreSinArchivo() throws Exception {
-        Path carpeta = Files.createTempDirectory("test-libre");
-        try {
-            Path resultado = Nombres.nombreLibre(carpeta, "a.pdf");
-            assertEquals("a.pdf", resultado.getFileName().toString());
-        } finally {
-            deleteRecursively(carpeta);
-        }
-    }
-
-    @Test
-    public void testNombreLibreConArchivoExistente() throws Exception {
-        Path carpeta = Files.createTempDirectory("test-libre");
-        try {
-            // Crear archivo a.pdf
-            Files.createFile(carpeta.resolve("a.pdf"));
-            
-            Path resultado = Nombres.nombreLibre(carpeta, "a.pdf");
-            assertEquals("a (2).pdf", resultado.getFileName().toString());
-        } finally {
-            deleteRecursively(carpeta);
-        }
-    }
-
-    @Test
-    public void testNombreLibreConArchivoYNumeracion() throws Exception {
-        Path carpeta = Files.createTempDirectory("test-libre");
-        try {
-            // Crear archivos a.pdf y a (2).pdf
-            Files.createFile(carpeta.resolve("a.pdf"));
-            Files.createFile(carpeta.resolve("a (2).pdf"));
-            
-            Path resultado = Nombres.nombreLibre(carpeta, "a.pdf");
-            assertEquals("a (3).pdf", resultado.getFileName().toString());
-        } finally {
-            deleteRecursively(carpeta);
-        }
-    }
-
-    @Test
-    public void testNombreLibreConMultipleExtensiones() throws Exception {
-        Path carpeta = Files.createTempDirectory("test-libre");
-        try {
-            // Crear archivo backup.tar.gz
-            Files.createFile(carpeta.resolve("backup.tar.gz"));
-            
-            Path resultado = Nombres.nombreLibre(carpeta, "backup.tar.gz");
-            assertEquals("backup.tar (2).gz", resultado.getFileName().toString());
-        } finally {
-            deleteRecursively(carpeta);
-        }
-    }
-
-    @Test
-    public void testNombreLibreSinExtensionOriginal() throws Exception {
-        Path carpeta = Files.createTempDirectory("test-libre");
-        try {
-            // Crear archivo LEEME
-            Files.createFile(carpeta.resolve("LEEME"));
-            
-            Path resultado = Nombres.nombreLibre(carpeta, "LEEME");
-            assertEquals("LEEME (2)", resultado.getFileName().toString());
-        } finally {
-            deleteRecursively(carpeta);
-        }
-    }
-
-    private void deleteRecursively(Path path) throws Exception {
-        if (Files.isDirectory(path)) {
-            try (var stream = Files.list(path)) {
-                stream.forEach(this::deleteRecursively);
-            }
-            Files.delete(path);
-        } else {
-            Files.deleteIfExists(path);
-        }
+    void nombreLibreConCarpetaQueNoExiste(@TempDir Path c) {
+        assertEquals(c.resolve("no/a.pdf"), Nombres.nombreLibre(c.resolve("no"), "a.pdf"));
     }
 }
