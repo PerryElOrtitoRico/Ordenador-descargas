@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -72,16 +73,37 @@ public final class Registro {
      *   devuelve Optional.of(new Movimiento(ahora, m.destino(), adondeQuedo)).
      */
     public Optional<Movimiento> deshacerUltimo() throws IOException {
-        List<Movimiento> movimientos = leer();
-        if (movimientos.isEmpty()) {
+        List<Movimiento> todos = leer();
+        if (todos.isEmpty()) {
             return Optional.empty();
         }
-        Movimiento ultimo = movimientos.get(movimientos.size() - 1);
-        Path destinoActual = ultimo.destino();
-        if (!Files.exists(destinoActual)) {
-            throw new IOException("ya no está: " + destinoActual);
+        Movimiento m = todos.get(todos.size() - 1);
+        
+        // Paso 3: Verificar si el destino ya no existe
+        if (!Files.exists(m.destino())) {
+            throw new IOException("ya no está: " + m.destino());
         }
-        // TODO: Implementación pendiente para deshacerUltimo
-        return Optional.empty();
+
+        Path carpeta = m.origen().getParent();
+        Files.createDirectories(carpeta);
+        
+        // Paso 5: Determinar adonde mover (con nombre libre si el origen ya existe)
+        Path adonde = Files.exists(m.origen()) ? Nombres.nombreLibre(carpeta, m.origen().getFileName().toString()) : m.origen();
+        
+        // Paso 6: Mover el archivo
+        Files.move(m.destino(), adonde);
+        
+        // Paso 7: Reescribir el registro sin el último movimiento
+        List<Movimiento> todosMenosUltimo = new ArrayList<>(todos.subList(0, todos.size() - 1));
+        Path tmp = archivo.resolveSibling(archivo.getFileName() + ".tmp");
+        StringBuilder contenido = new StringBuilder();
+        for (Movimiento mov : todosMenosUltimo) {
+            contenido.append(mov.fecha()).append("\t").append(mov.origen()).append("\t").append(mov.destino()).append("\n");
+        }
+        Files.writeString(tmp, contenido.toString(), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
+        Files.move(tmp, archivo, StandardCopyOption.REPLACE_EXISTING);
+        
+        // Paso 8: Retornar el movimiento deshaciendo
+        return Optional.of(new Movimiento(LocalDateTime.now(), m.destino(), adonde));
     }
 }

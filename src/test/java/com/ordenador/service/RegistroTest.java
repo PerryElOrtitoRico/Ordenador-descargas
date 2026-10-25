@@ -36,16 +36,51 @@ class RegistroTest {
 
     @Test
     void deshacerVuelveAlOrigen(@TempDir Path d) throws Exception {
-        // TODO
+        Path origen = d.resolve("a");
+        Path destino = d.resolve("b");
+        Files.createDirectories(origen);
+        Files.createDirectories(destino);
+        Path archivoX = destino.resolve("x.pdf");
+        Files.writeString(archivoX, "contenido");
+        Registro r = new Registro(d.resolve("datos/movimientos.log"));
+        Movimiento m = new Movimiento(LocalDateTime.now(), origen.resolve("x.pdf"), destino.resolve("x.pdf"));
+        r.anotar(m);
+        Optional<Movimiento> deshacer = r.deshacerUltimo();
+        assertTrue(deshacer.isPresent());
+        Path adonde = deshacer.get().destino();
+        assertTrue(Files.exists(adonde));
+        assertFalse(Files.exists(destino.resolve("x.pdf")));
+        List<Movimiento> leido = r.leer();
+        assertTrue(leido.isEmpty());
     }
 
     @Test
     void deshacerNoPisa(@TempDir Path d) throws Exception {
-        // TODO
+        Path carpeta = d.resolve("a");
+        Files.createDirectories(carpeta);
+        Path archivoX1 = carpeta.resolve("x.pdf");
+        Files.writeString(archivoX1, "contenido1");
+        Path destino = d.resolve("b");
+        Files.createDirectories(destino);
+        Path archivoX2 = destino.resolve("x.pdf");
+        Files.writeString(archivoX2, "contenido2");
+        Registro r = new Registro(d.resolve("datos/movimientos.log"));
+        Movimiento m = new Movimiento(LocalDateTime.now(), carpeta.resolve("x.pdf"), destino.resolve("x.pdf"));
+        r.anotar(m);
+        Optional<Movimiento> deshacer = r.deshacerUltimo();
+        assertTrue(deshacer.isPresent());
+        Path adonde = deshacer.get().destino();
+        assertEquals(carpeta.resolve("x (2).pdf"), adonde);
+        assertEquals("contenido1", Files.readString(carpeta.resolve("x.pdf")));
+        assertEquals("contenido2", Files.readString(adonde));
+        List<Movimiento> leido = r.leer();
+        assertTrue(leido.isEmpty());
     }
 
     @Test
     void deshacerSinRegistro(@TempDir Path d) throws Exception {
-        // TODO
+        Registro r = new Registro(d.resolve("datos/movimientos.log"));
+        Optional<Movimiento> deshacer = r.deshacerUltimo();
+        assertTrue(deshacer.isEmpty());
     }
 }
