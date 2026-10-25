@@ -29,14 +29,14 @@ public class ConfigRepoTest {
 
     @Test
     void guardarYLeerDevuelveConfigIgual() throws IOException {
-        Config original = new Config("~/MiCarpeta", 10, null);
+        Config original = new Config("~/MiCarpeta", 10, java.util.List.of());
         Path archivo = d.resolve("reglas.json");
 
         ConfigRepo.guardar(original, archivo);
         Config leido = ConfigRepo.leer(archivo);
 
         assertEquals(original.carpeta(), leido.carpeta());
-        assertEquals(original.segundosQuieto(), leido.segundosQuieto());
+        assertEquals(original, leido);
     }
 
     @Test
