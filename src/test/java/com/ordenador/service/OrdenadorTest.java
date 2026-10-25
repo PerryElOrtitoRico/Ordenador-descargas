@@ -113,7 +113,7 @@ class OrdenadorTest {
 
     @Test
     void ordenarCarpeta() throws Exception {
-        // lo completa otra subtarea (T05c): no lo cambies
+        // TODO T05c
     }
 }
 

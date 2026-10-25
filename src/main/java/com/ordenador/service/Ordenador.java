@@ -76,8 +76,8 @@ public final class Ordenador {
      * ordenados por nombre; las subcarpetas no se tocan. Lista vacía si la carpeta no existe.
      */
     public List<Resultado> ordenarCarpeta() throws IOException {
-        // lo completa otra subtarea (T05c): no lo cambies
-        throw new UnsupportedOperationException("T05c");
+        // TODO T05c
+        throw new UnsupportedOperationException();
     }
 }
 
