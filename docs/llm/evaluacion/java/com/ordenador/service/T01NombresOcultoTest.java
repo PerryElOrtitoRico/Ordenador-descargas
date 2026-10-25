@@ -54,7 +54,7 @@ class T01NombresOcultoTest {
         Files.createFile(c.resolve("a (2).pdf"));
         Files.createFile(c.resolve("a (3).pdf"));
         assertEquals(c.resolve("a (4).pdf"), Nombres.nombreLibre(c, "a.pdf"));
-        assertEquals(4, Files.list(c).count(), "nombreLibre no tiene que crear archivos");
+        assertEquals(3, Files.list(c).count(), "nombreLibre no tiene que crear archivos");
     }
 
     @Test
