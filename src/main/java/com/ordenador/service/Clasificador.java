@@ -1,128 +1,65 @@
 package com.ordenador.service;
 
-import com.ordenador.model.Accion;
 import com.ordenador.model.Regla;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
-/** Lógica para clasificar archivos según las reglas definidas. */
+/** Decide qué regla le toca a un nombre de archivo (sección 3 de la especificación). */
 public final class Clasificador {
 
     private Clasificador() { }
 
     /**
-     * Compara un patrón glob con un nombre de archivo sin distinguir mayúsculas.
-     * '*' = cero o más caracteres, '?' = uno; todo lo demás es literal (usando Pattern.quote).
+     * Glob sin distinguir mayúsculas: '*' = cero o más caracteres, '?' = uno; todo lo demás es literal.
      * Tiene que coincidir el nombre entero.
      */
     public static boolean coincideGlob(String patron, String nombre) {
-        if (patron == null || nombre == null) {
-            return false;
-        }
-
-        // Normalizamos ambos a minúsculas para comparar sin distinguir mayúsculas
-        String patronNormalizado = patron.toLowerCase();
-        String nombreNormalizado = nombre.toLowerCase();
-
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < patronNormalizado.length(); i++) {
-            char c = patronNormalizado.charAt(i);
+        StringBuilder regex = new StringBuilder();
+        StringBuilder literal = new StringBuilder();
+        for (char c : patron.toCharArray()) {
             if (c == '*' || c == '?') {
-                // Los caracteres glob no necesitan escapar, se usan como wildcard
-                sb.append(c);
-            } else {
-                // Todo lo demás es literal, debe escaparse si tiene significado especial en regex
-                sb.append(Pattern.quote(String.valueOf(c)));
-            }
-        }
-
-        String patronRegex = sb.toString();
-        Pattern pattern = Pattern.compile("^" + patronRegex + "$");
-
-        return pattern.matcher(nombreNormalizado).matches();
-    }
-
-    /**
-     * Determina la primera regla de la lista que coincide con el nombre del archivo.
-     * Una regla coincide si cumple todas sus listas no vacías (extensiones, patrones, palabras).
-     * Dentro de cada lista basta con que coincida un elemento.
-     * Devuelve Optional.empty() si ninguna regla coincide.
-     */
-    public static Optional<Coincidencia> clasificar(String nombre, List<Regla> reglas) {
-        if (nombre == null || reglas == null || reglas.isEmpty()) {
-            return Optional.empty();
-        }
-
-        // Normalizamos el nombre una vez para reutilizarlo en las comprobaciones
-        String nombreNormalizado = Nombres.normalizar(nombre);
-        String extensionNombre = Nombres.extension(nombre);
-
-        for (Regla regla : reglas) {
-            if (regla == null) {
-                continue;
-            }
-
-            boolean coincideExtensiones = verificarLista(regla.extensiones, extensionNombre);
-            boolean coincidePatrones = verificarLista(regla.patrones, nombreNormalizado);
-            boolean coincidePalabras = verificarLista(regla.palabras, nombreNormalizado);
-
-            if (coincideExtensiones && coincidePatrones && coincidePalabras) {
-                // Encontramos la primera regla que coincide
-                String palabraCoincidente = null;
-                if (!regla.palabras.isEmpty()) {
-                    // Buscamos la primera palabra de la lista cuya forma normalizada está contenida en nombreNormalizado
-                    for (String p : regla.palabras) {
-                        String pNormalizada = Nombres.normalizar(p);
-                        if (nombreNormalizado.contains(pNormalizada)) {
-                            palabraCoincidente = p; // Devolvemos la palabra tal como está escrita en la lista
-                            break;
-                        }
-                    }
+                if (!literal.isEmpty()) {
+                    regex.append(Pattern.quote(literal.toString()));
+                    literal.setLength(0);
                 }
-
-                return Optional.of(new Coincidencia(regla, palabraCoincidente));
+                regex.append(c == '*' ? ".*" : ".");
+            } else {
+                literal.append(c);
             }
         }
-
-        return Optional.empty();
+        if (!literal.isEmpty()) {
+            regex.append(Pattern.quote(literal.toString()));
+        }
+        int flags = Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.DOTALL;
+        return Pattern.compile(regex.toString(), flags).matcher(nombre).matches();
     }
 
-    /**
-     * Verifica si alguna de las cadenas en la lista coincide con el valor objetivo.
-     * Para extensiones: comparación directa sin distinguir mayúsculas.
-     * Para patrones y palabras: se usa coincidencia glob o contains según corresponda.
-     */
-    private static boolean verificarLista(List<String> lista, String valor) {
-        if (lista == null || lista.isEmpty()) {
-            return true; // Lista vacía es condición trivialmente cumplida
-        }
-
-        for (String elemento : lista) {
-            if (elemento == null) {
+    /** La primera regla de la lista que coincide con el nombre, o Optional.empty(). */
+    public static Optional<Coincidencia> clasificar(String nombre, List<Regla> reglas) {
+        String extension = Nombres.extension(nombre);
+        String normalizado = Nombres.normalizar(nombre);
+        for (Regla regla : reglas) {
+            if (!regla.extensiones().isEmpty()
+                    && regla.extensiones().stream().noneMatch(e -> e.equalsIgnoreCase(extension))) {
                 continue;
             }
-
-            String elementoNormalizado = Nombres.normalizar(elemento);
-
-            if (Nombres.extension(valor).equalsIgnoreCase(elemento)) {
-                // Coincidencia por extensión (ya hecha en el bucle principal, pero aquí para consistencia lógica si fuera necesario)
-                return true;
-            } else if (elementoNormalizado.equals(valor)) {
-                // Coincidencia exacta normalizada (para palabras completas o patrones glob simples)
-                return true;
-            } else if (valor.contains(elementoNormalizado)) {
-                // Para palabras: el nombre normalizado debe contener la palabra normalizada
-                return true;
-            } else if (coincideGlob(elemento, valor)) {
-                // Para patrones: usamos la lógica de glob
-                return true;
+            if (!regla.patrones().isEmpty()
+                    && regla.patrones().stream().noneMatch(p -> coincideGlob(p, nombre))) {
+                continue;
             }
+            String palabra = null;
+            if (!regla.palabras().isEmpty()) {
+                palabra = regla.palabras().stream()
+                        .filter(p -> normalizado.contains(Nombres.normalizar(p)))
+                        .findFirst().orElse(null);
+                if (palabra == null) {
+                    continue;
+                }
+            }
+            return Optional.of(new Coincidencia(regla, palabra));
         }
-
-        return false;
+        return Optional.empty();
     }
 }
