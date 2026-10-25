@@ -29,3 +29,12 @@ Conclusiones del método original:
 - Velocidad: entre 6 y 12 tokens por segundo, no 21 (ver la propuesta sobre PARALLEL en el informe).
 
 ## Método esqueleto (T04–T05): Claude escribe el archivo con firmas e imports; qwen solo completa los `// TODO`
+
+Cambios respecto del método original, todos juntos desde T04a-1: (1) Claude escribe el esqueleto (package, imports, firmas, javadoc, `// TODO`) y lo compila; (2) el pedido lleva un extracto del contrato (solo las secciones que usa la subtarea), la subtarea y los archivos actuales; (3) system prompt nuevo: completar solo los `// TODO`, no tocar firmas ni otros archivos, "los records se leen con `x()`, no `getX()`", y **un ejemplo** del bloque con la ruta; (4) subtareas de un método o una clase chica; (5) cada corrección repite contrato + subtarea + archivo actual + error. Las firmas se comprueban con `javap -p` contra el esqueleto.
+
+| Iteración | Entrada / salida | Segundos | Resultado | Causa probable | Cambio para la siguiente → ¿funcionó? |
+|---|---|---|---|---|---|
+| T04a-1 | 1319 / 900 | 70 | **Compila, firmas iguales, formato correcto.** Falla 1 test propio: `expandir("~/Imágenes")` da `/Imágenes` (`substring(1)` deja la barra) y falta el caso `"~"`. | La tarea decía el resultado (`home.resolve("x/y")`) pero no cómo cortar el `~/`. | Corrección con contexto completo (método nuevo). |
+| T04a-2 | 1938 / 911 | 83 | Arregló justo el error que se le mostró (`substring(2)`). Ahora falla `expandir("~")`. | Corrige **un error por vuelta**: el informe de JUnit muestra solo la primera aserción que falla. | Misma corrección con el error nuevo. → funcionó a medias (ver T04a-3). |
+| T04a-3 | 1980 / 911 | 86 | Respuesta **idéntica** a la anterior. | El mensaje de la excepción que le dictó la tarea ("tiene que empezar con ~/ o /") contradice la regla de `"~"`: el prompt mismo era ambiguo. | Reescribir la regla de la tarea como pasos de código en orden (`if (ruta.equals("~")) return home;` …) y un mensaje que no contradiga. |
+| T04a-4 | 2006 / 932 | 88 | **Compila, tests propios 2/2, ocultos 2/2.** | Los pasos en código, en orden, los copia bien. | → funcionó. Para T04b y T04c se escriben las reglas como pasos de código desde el primer pedido. |

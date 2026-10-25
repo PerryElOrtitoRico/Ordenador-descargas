@@ -6,11 +6,11 @@ Completar los tres métodos de `Rutas` (marcados `// TODO`) y sus dos tests.
 
 ## Reglas
 - `config` y `registro`: si la variable de entorno es `null` o `""`, se usa la carpeta por defecto de `home`. Usá `Path.of(...)` y `resolve(...)`.
-- `expandir`:
-  - `"~"` → `home`.
-  - `"~/x/y"` → `home.resolve("x/y")`.
-  - empieza con `/` → `Path.of(ruta)`.
-  - cualquier otra cosa (`"Descargas"`, `"~otro/x"`) → `throw new IllegalArgumentException("Ruta no válida (tiene que empezar con ~/ o /): " + ruta)`.
+- `expandir`, en este orden:
+  1. `if (ruta.equals("~")) return home;`
+  2. `if (ruta.startsWith("~/")) return home.resolve(ruta.substring(2));`
+  3. `if (ruta.startsWith("/")) return Path.of(ruta);`
+  4. cualquier otra cosa (`"Descargas"`, `"~otro/x"`) → `throw new IllegalArgumentException("Ruta no válida (usá ~, ~/carpeta o una ruta absoluta): " + ruta);`
 
 ## Ejemplos (para los tests), con `HOME = Path.of("/home/f")`
 | llamada | resultado |
