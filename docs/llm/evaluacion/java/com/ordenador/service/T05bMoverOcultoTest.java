@@ -17,8 +17,9 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Test oculto de T05: no se le muestra al LLM. */
-class T05OrdenadorOcultoTest {
+/** Test oculto de T05b: no se le muestra al LLM. */
+class T05bMoverOcultoTest {
+
 
     @TempDir Path home;
     Path descargas;
@@ -91,39 +92,6 @@ class T05OrdenadorOcultoTest {
     }
 
     @Test
-    void avisarNoMueve() throws Exception {
-        Path pdf = Files.writeString(descargas.resolve("Química_parcial.pdf"), "x");
-        Resultado r = ordenador(false).procesar(pdf);
-        assertEquals(Resultado.Estado.AVISADO, r.estado());
-        assertNull(r.destino());
-        assertEquals("Subilo a Drive, carpeta QUIMICA/teoria", r.mensaje());
-        assertEquals(List.of("Ordenador|Química_parcial.pdf: Subilo a Drive, carpeta QUIMICA/teoria"), avisos);
-        assertTrue(Files.exists(pdf));
-        Path otro = Files.writeString(descargas.resolve("otro.pdf"), "x");
-        assertEquals("Sin materia", ordenador(false).procesar(otro).mensaje());
-        assertEquals(List.of(), registro.leer());
-    }
-
-    @Test
-    void ignoradosYSinRegla() throws Exception {
-        Ordenador o = ordenador(false);
-        Path part = Files.writeString(descargas.resolve("video.mp4.part"), "x");
-        Path tmpPng = Files.writeString(descargas.resolve(".oculta.png"), "x");
-        Path dir = Files.createDirectories(descargas.resolve("carpeta.png"));
-        Path nada = Files.writeString(descargas.resolve("nada.xyz"), "x");
-        assertEquals(Resultado.Estado.IGNORADO, o.procesar(part).estado());
-        assertEquals(Resultado.Estado.IGNORADO, o.procesar(tmpPng).estado());
-        assertEquals(Resultado.Estado.IGNORADO, o.procesar(dir).estado());
-        assertEquals(Resultado.Estado.IGNORADO, o.procesar(descargas.resolve("no-existe.png")).estado());
-        Resultado r = o.procesar(nada);
-        assertEquals(Resultado.Estado.SIN_REGLA, r.estado());
-        assertNull(r.destino());
-        assertNull(r.mensaje());
-        assertTrue(Files.exists(part) && Files.exists(tmpPng) && Files.exists(nada));
-        assertEquals(List.of(), avisos);
-    }
-
-    @Test
     void yaEstaEnSuLugarYFechaParaPapelera() throws Exception {
         Path inst = Files.createDirectories(home.resolve("Descargas/Instaladores"));
         Path deb = Files.writeString(inst.resolve("ya.deb"), "x");
@@ -137,22 +105,5 @@ class T05OrdenadorOcultoTest {
         Instant llegada = Files.getLastModifiedTime(r.destino()).toInstant();
         assertTrue(Duration.between(llegada, Instant.now()).abs().toMinutes() < 5,
                 "con diasPapelera > 0 la fecha de modificación tiene que ser la de llegada");
-    }
-
-    @Test
-    void ordenarCarpetaEnOrdenSinSubcarpetas() throws Exception {
-        Files.writeString(descargas.resolve("b.png"), "x");
-        Files.writeString(descargas.resolve("a.xyz"), "x");
-        Files.writeString(descargas.resolve("c.deb"), "x");
-        Files.createDirectories(descargas.resolve("sub"));
-        Files.writeString(descargas.resolve("sub/d.png"), "x");
-        List<Resultado> rs = ordenador(false).ordenarCarpeta();
-        assertEquals(List.of("a.xyz", "b.png", "c.deb"), rs.stream().map(r -> r.archivo().getFileName().toString()).toList());
-        assertEquals(List.of(Resultado.Estado.SIN_REGLA, Resultado.Estado.MOVIDO, Resultado.Estado.MOVIDO),
-                rs.stream().map(Resultado::estado).toList());
-        assertTrue(Files.exists(descargas.resolve("sub/d.png")));
-        assertTrue(Files.exists(home.resolve("Descargas/Instaladores/c.deb")));
-        Ordenador sinCarpeta = new Ordenador(new Config("~/NoExiste", 5, REGLAS), home, registro, falso, false);
-        assertEquals(List.of(), sinCarpeta.ordenarCarpeta());
     }
 }

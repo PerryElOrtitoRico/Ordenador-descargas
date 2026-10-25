@@ -29,3 +29,28 @@ Conclusiones del método original:
 - Velocidad: entre 6 y 12 tokens por segundo, no 21 (ver la propuesta sobre PARALLEL en el informe).
 
 ## Método esqueleto (T04–T05): Claude escribe el archivo con firmas e imports; qwen solo completa los `// TODO`
+
+Cambios respecto del método original, todos juntos desde T04a-1: (1) Claude escribe el esqueleto (package, imports, firmas, javadoc, `// TODO`) y lo compila; (2) el pedido lleva un extracto del contrato (solo las secciones que usa la subtarea), la subtarea y los archivos actuales; (3) system prompt nuevo: completar solo los `// TODO`, no tocar firmas ni otros archivos, "los records se leen con `x()`, no `getX()`", y **un ejemplo** del bloque con la ruta; (4) subtareas de un método o una clase chica; (5) cada corrección repite contrato + subtarea + archivo actual + error. Las firmas se comprueban con `javap -p` contra el esqueleto.
+
+| Iteración | Entrada / salida | Segundos | Resultado | Causa probable | Cambio para la siguiente → ¿funcionó? |
+|---|---|---|---|---|---|
+| T04a-1 | 1319 / 900 | 70 | **Compila, firmas iguales, formato correcto.** Falla 1 test propio: `expandir("~/Imágenes")` da `/Imágenes` (`substring(1)` deja la barra) y falta el caso `"~"`. | La tarea decía el resultado (`home.resolve("x/y")`) pero no cómo cortar el `~/`. | Corrección con contexto completo (método nuevo). |
+| T04a-2 | 1938 / 911 | 83 | Arregló justo el error que se le mostró (`substring(2)`). Ahora falla `expandir("~")`. | Corrige **un error por vuelta**: el informe de JUnit muestra solo la primera aserción que falla. | Misma corrección con el error nuevo. → funcionó a medias (ver T04a-3). |
+| T04a-3 | 1980 / 911 | 86 | Respuesta **idéntica** a la anterior. | El mensaje de la excepción que le dictó la tarea ("tiene que empezar con ~/ o /") contradice la regla de `"~"`: el prompt mismo era ambiguo. | Reescribir la regla de la tarea como pasos de código en orden (`if (ruta.equals("~")) return home;` …) y un mensaje que no contradiga. |
+| T04a-4 | 2006 / 932 | 88 | **Compila, tests propios 2/2, ocultos 2/2.** | Los pasos en código, en orden, los copia bien. | → funcionó. Para T04b y T04c se escriben las reglas como pasos de código desde el primer pedido. |
+| T04b-1 | 1904 / 1575 | 220 | Compila, firmas iguales. `anotar` crea la carpeta de `m.origen()` en vez de la de `archivo` → `NoSuchFileException` (1 test propio, 1/2 ocultos). Además empezó `deshacerUltimo`, que no le tocaba. | Confundió `archivo` con el `Movimiento`; el error recortado mostraba solo marcos de `java.base`, no la línea de su código. | El recorte del error agrega los dos primeros marcos de `com.ordenador` **con la línea de código** (`← línea: …`). |
+| T04b-2 | ~2000 / ~1575 | ~200 | Igual que antes: el error señala `writeString` (línea 34) y no tocó el `createDirectories` de la línea 31. | La línea que falla no es la que tiene el error; sin pensar, no conecta "no existe la carpeta" con la línea de arriba. | Probar **razonamiento encendido** (`reasoning_effort: "medium"`; `chat_template_kwargs.enable_thinking` no hace nada en LM Studio). |
+| T04b-3 | 2905 / 1787 (467 de razonamiento) | 285 | **Arreglado**: tests propios 5/5 (3 vacíos de T04c), ocultos 2/2. En el razonamiento relee la regla de la tarea y ve que era `archivo.getParent()`. | Con razonamiento compara su código con la regla escrita. | → funcionó. Para T04c: razonamiento desde el primer pedido, y en el system prompt "los `// TODO` que la tarea no nombra quedan como están" (en T04b-1 empezó `deshacerUltimo`). |
+| T04c-1 | 2583 / 2672 (732 razon.) | 369 | `deshacerUltimo` bien escrito, pero no compila: en T04b había **borrado el import `StandardCopyOption`** del esqueleto (no se usaba todavía) y ahora lo necesita. | Limpia imports "sin usar" aunque el system prompt diga que no; el chequeo de firmas (`javap`) no lo ve. | Claude agrega un chequeo de imports contra el esqueleto. Corrección con razonamiento medio. |
+| T04c-2 | 3263 / 4895 (**todo** razonamiento) | 695 | `finish_reason: length`: se gastó todo el contexto pensando y **no devolvió código**. En el razonamiento duda entre "no cambies imports" y "podés agregar imports". | Razonamiento `medium` sin tope + regla del prompt que parece contradictoria. | Razonamiento apagado para errores de compilación (son mecánicos). → funcionó (T04c-3). |
+| T04c-3 | 3265 / 1947 | 328 | Compila, imports completos, **ocultos 3/3**. Falla su test `deshacerNoPisa`: afirma que `a/x.pdf` no existe cuando el test mismo lo creó antes. | Error en la lógica del test propio, no del código. | Corrección con el error y la línea. |
+| T04c-4 | 3377 / 2061 | 242 | Respuesta igual en lo que importa: el test sigue con la misma aserción. | Cuando el error está en el test, insiste: para él la aserción "es lo que pide la tarea". | — (3 correcciones): Claude arregla esa aserción del test. |
+
+Velocidad medida hasta acá: entre 6 y 13 tokens de salida por segundo (T04c: 7,2 · 5,9 · 8,5), lejos de los ~21 esperados.
+
+### Prueba de PARALLEL (después de T04c)
+Mismo pedido (el de T04a-1, 1128 tokens de entrada, 500 de salida, temperatura 0), dos veces cada uno:
+- PARALLEL 4: 12,2 y 11,2 tok/s (contando también el procesamiento de la entrada). GPU: 4,9 GB usados.
+- PARALLEL 1 (`lms unload --all` + `lms load qwen/qwen3.5-9b --context-length 8192 --parallel 1 -y`): 10,3 y 10,5 tok/s. GPU: 4,8 GB.
+
+Conclusión: PARALLEL no era la causa de la lentitud (con un solo pedido a la vez no hay reparto). Queda cargado con PARALLEL 1 (no cambia nada y evita dudas). La velocidad real de este equipo con qwen3.5-9b y contexto 8192 es ~10–12 tok/s, no 21: hay que planificar unos 3–5 minutos por respuesta de 2000 tokens.
