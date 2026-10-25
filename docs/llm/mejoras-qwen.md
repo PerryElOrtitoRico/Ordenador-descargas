@@ -47,3 +47,10 @@ Cambios respecto del método original, todos juntos desde T04a-1: (1) Claude esc
 | T04c-4 | 3377 / 2061 | 242 | Respuesta igual en lo que importa: el test sigue con la misma aserción. | Cuando el error está en el test, insiste: para él la aserción "es lo que pide la tarea". | — (3 correcciones): Claude arregla esa aserción del test. |
 
 Velocidad medida hasta acá: entre 6 y 13 tokens de salida por segundo (T04c: 7,2 · 5,9 · 8,5), lejos de los ~21 esperados.
+
+### Prueba de PARALLEL (después de T04c)
+Mismo pedido (el de T04a-1, 1128 tokens de entrada, 500 de salida, temperatura 0), dos veces cada uno:
+- PARALLEL 4: 12,2 y 11,2 tok/s (contando también el procesamiento de la entrada). GPU: 4,9 GB usados.
+- PARALLEL 1 (`lms unload --all` + `lms load qwen/qwen3.5-9b --context-length 8192 --parallel 1 -y`): 10,3 y 10,5 tok/s. GPU: 4,8 GB.
+
+Conclusión: PARALLEL no era la causa de la lentitud (con un solo pedido a la vez no hay reparto). Queda cargado con PARALLEL 1 (no cambia nada y evita dudas). La velocidad real de este equipo con qwen3.5-9b y contexto 8192 es ~10–12 tok/s, no 21: hay que planificar unos 3–5 minutos por respuesta de 2000 tokens.
