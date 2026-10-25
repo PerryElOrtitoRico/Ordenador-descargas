@@ -64,17 +64,51 @@ class OrdenadorTest {
 
     @Test
     void mueveAnotaYNotifica() throws Exception {
-        // TODO T05b
+        Path archivo = descargas.resolve("foto.PNG");
+        Files.writeString(archivo, "contenido");
+        
+        Resultado r = ordenador(false).procesar(archivo);
+        
+        assertEquals(Resultado.Estado.MOVIDO, r.estado());
+        assertEquals("foto.PNG → " + home.resolve("Imágenes/foto.PNG"), r.mensaje());
+        assertFalse(Files.exists(descargas.resolve("foto.PNG")));
+        assertTrue(Files.exists(home.resolve("Imágenes").resolve("foto.PNG")));
+        assertEquals(1, avisos.size());
+        assertEquals(1, registro.leer().size());
     }
 
     @Test
     void noPisa() throws Exception {
-        // TODO T05b
+        Path destino = home.resolve("Imágenes");
+        Files.createDirectories(destino);
+        Path archivoViejo = destino.resolve("foto.png");
+        Files.writeString(archivoViejo, "viejo");
+        
+        Path archivo = descargas.resolve("foto.png");
+        Files.writeString(archivo, "nuevo");
+        
+        Resultado r = ordenador(false).procesar(archivo);
+        
+        assertEquals(Resultado.Estado.MOVIDO, r.estado());
+        assertEquals("foto.png → " + home.resolve("Imágenes/foto (2).png"), r.mensaje());
+        assertFalse(Files.exists(descargas.resolve("foto.png")));
+        assertTrue(Files.exists(home.resolve("Imágenes").resolve("foto (2).png")));
+        assertEquals("viejo", Files.readString(archivoViejo));
     }
 
     @Test
     void simularNoTocaNada() throws Exception {
-        // TODO T05b
+        Path archivo = descargas.resolve("a.jpg");
+        Files.writeString(archivo, "contenido");
+        
+        Resultado r = ordenador(true).procesar(archivo);
+        
+        assertEquals(Resultado.Estado.MOVIDO, r.estado());
+        assertEquals("a.jpg → " + home.resolve("Imágenes/a.jpg"), r.mensaje());
+        assertTrue(Files.exists(descargas.resolve("a.jpg")));
+        assertFalse(Files.exists(home.resolve("Imágenes")));
+        assertEquals(0, avisos.size());
+        assertEquals(0, registro.leer().size());
     }
 
     @Test
@@ -82,3 +116,4 @@ class OrdenadorTest {
         // lo completa otra subtarea (T05c): no lo cambies
     }
 }
+

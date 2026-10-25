@@ -57,8 +57,18 @@ public final class Ordenador {
 
     /** Regla MOVER: mueve sin pisar, anota y notifica; simulando, solo devuelve lo que haría. */
     private Resultado mover(Path archivo, Coincidencia c) throws IOException {
-        // TODO T05b
-        throw new UnsupportedOperationException();
+        String nombre = archivo.getFileName().toString();
+        Path carpeta = Rutas.expandir(c.regla().destino(), home);
+        if (carpeta.equals(archivo.getParent())) return new Resultado(archivo, Resultado.Estado.IGNORADO, null, null);
+        Path destino = Nombres.nombreLibre(carpeta, nombre);
+        String mensaje = nombre + " → " + destino;
+        if (simular) return new Resultado(archivo, Resultado.Estado.MOVIDO, destino, mensaje);
+        Files.createDirectories(carpeta);
+        Files.move(archivo, destino);
+        if (c.regla().diasPapelera() > 0) Files.setLastModifiedTime(destino, FileTime.from(Instant.now()));
+        registro.anotar(new Movimiento(LocalDateTime.now(), archivo, destino));
+        notificador.notificar("Ordenador", mensaje);
+        return new Resultado(archivo, Resultado.Estado.MOVIDO, destino, mensaje);
     }
 
     /**
@@ -70,3 +80,4 @@ public final class Ordenador {
         throw new UnsupportedOperationException("T05c");
     }
 }
+

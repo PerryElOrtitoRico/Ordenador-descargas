@@ -56,3 +56,17 @@ Mismo pedido (el de T04a-1, 1128 tokens de entrada, 500 de salida, temperatura 0
 Conclusión: PARALLEL no era la causa de la lentitud (con un solo pedido a la vez no hay reparto). Queda cargado con PARALLEL 1 (no cambia nada y evita dudas). La velocidad real de este equipo con qwen3.5-9b y contexto 8192 es ~10–12 tok/s, no 21: hay que planificar unos 3–5 minutos por respuesta de 2000 tokens.
 | T05a-1 | 2730 / 2311 | 298 | `procesar` y `avisar` **idénticos a los pasos** de la tarea (ocultos 2/2). Pero completó también `mover` y `ordenarCarpeta` (con errores de compilación) y los tests de T05b–c, y puso los dos archivos **en un solo bloque**. | "Completá solo los que nombra la tarea" no alcanza si el archivo tiene otros `// TODO` a la vista: los toma como parte del pedido. | Claude descarta lo que está fuera de alcance; el extractor separa archivos dentro de un mismo bloque. Corrección del test. |
 | T05a-2 | ~2900 / ~2400 | ~300 | Volvió a completar todo y no compila (`IOException` dentro de una lambda en `ordenarCarpeta`). Su test de T05a usaba `ordenarCarpeta`, que es de T05c. | Mismo problema de alcance. | Se termina a mano (procesar/avisar de qwen, test `temporalIgnoradoYSinRegla` de Claude). **Para T05b–c**: los métodos de otras subtareas ya no dicen `// TODO` sino `// lo completa otra subtarea (T05c): no lo cambies`. |
+| T05b-qwen-1 | 3241 / 2148 | 227 | **`mover` correcto al primer intento, ocultos 4/4, firmas e imports iguales y `ordenarCarpeta` sin tocar** (el marcador nuevo funcionó). Fallan 3 tests propios: esperan el texto `"foto.PNG → home/Imágenes/foto.PNG"` (la palabra `home` literal en vez de la carpeta temporal). | Escribió la ruta "como se ve en la tarea" en lugar de armarla con `home.resolve(...)`. | Corrección con el error. |
+| T05b-qwen-2 | 4337 / 2153 | 346 | Los mismos 3 tests fallando, sin cambios en las aserciones. | Igual que T04c-4: no corrige sus propios tests. | Claude cambia las 3 aserciones a `"… → " + home.resolve(...)`. |
+
+### Comparación con Gemma 4 E4B (`google/gemma-4-e4b-qat`) en T05b
+Mismo pedido (mismo system prompt, extracto del contrato, subtarea y esqueleto), contexto 8192, PARALLEL 1, sin razonamiento. Se descargó qwen (`lms unload --all`) y se cargó Gemma.
+
+| | qwen3.5-9b | Gemma 4 E4B |
+|---|---|---|
+| Velocidad (pedido de prueba, 500 tokens) | 10,3–12,2 tok/s | 14,7–14,9 tok/s (no los ~45 de la memoria: la GPU de 6 GB no lo deja entero) |
+| Intento 1 | 227 s, 2148 tokens; compila; ocultos **4/4**; 3 tests propios mal | 407 s, 3009 tokens (más comentarios: copió cada paso como comentario); **no compila**: le falta `import com.ordenador.model.Movimiento` en el test; `mover` correcto (ocultos 4/4 con el test propio aparte) |
+| Corrección 1 | 346 s; tests propios igual de mal | 198 s, 3021 tokens, entrada 4910 (**7931 de 8192**: casi sin contexto libre); compila; 2 tests propios mal (`"/" + ruta` y una ruta esperada equivocada) |
+| Firmas / alcance | iguales; no tocó T05c | iguales; no tocó T05c |
+
+Conclusión de T05b: con un esqueleto y pasos de código, los dos escriben el método bien; ninguno escribe bien los tests que verifican textos con rutas. Gemma es algo más rápido por token pero escribe ~40 % más tokens, así que tardó más; y sus respuestas largas lo dejan cerca del límite de contexto en las correcciones. Se queda la versión de qwen.
