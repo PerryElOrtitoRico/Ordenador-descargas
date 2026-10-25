@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -28,8 +27,11 @@ public final class Registro {
      * fecha.toString() + "\t" + origen + "\t" + destino + "\n" (UTF-8, StandardOpenOption.CREATE y APPEND).
      */
     public void anotar(Movimiento m) throws IOException {
-        // TODO
-        throw new UnsupportedOperationException();
+        if (archivo.getParent() != null) {
+            Files.createDirectories(archivo.getParent());
+        }
+        String linea = m.fecha() + "\t" + m.origen() + "\t" + m.destino() + "\n";
+        Files.writeString(archivo, linea, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     }
 
     /**
@@ -37,8 +39,27 @@ public final class Registro {
      * Ignora líneas en blanco y líneas que no tienen 3 partes o cuya fecha no se puede leer (LocalDateTime.parse).
      */
     public List<Movimiento> leer() throws IOException {
-        // TODO
-        throw new UnsupportedOperationException();
+        if (!Files.exists(archivo)) {
+            return new ArrayList<>();
+        }
+        List<String> lineas = Files.readAllLines(archivo, StandardCharsets.UTF_8);
+        List<Movimiento> movimientos = new ArrayList<>();
+        for (String linea : lineas) {
+            if (linea.isBlank()) {
+                continue;
+            }
+            String[] partes = linea.split("\t");
+            if (partes.length != 3) {
+                continue;
+            }
+            try {
+                LocalDateTime fecha = LocalDateTime.parse(partes[0]);
+                movimientos.add(new Movimiento(fecha, Path.of(partes[1]), Path.of(partes[2])));
+            } catch (DateTimeParseException e) {
+                // Se saltea si la fecha no se puede leer
+            }
+        }
+        return movimientos;
     }
 
     /**
@@ -51,7 +72,16 @@ public final class Registro {
      *   devuelve Optional.of(new Movimiento(ahora, m.destino(), adondeQuedo)).
      */
     public Optional<Movimiento> deshacerUltimo() throws IOException {
-        // TODO
-        throw new UnsupportedOperationException();
+        List<Movimiento> movimientos = leer();
+        if (movimientos.isEmpty()) {
+            return Optional.empty();
+        }
+        Movimiento ultimo = movimientos.get(movimientos.size() - 1);
+        Path destinoActual = ultimo.destino();
+        if (!Files.exists(destinoActual)) {
+            throw new IOException("ya no está: " + destinoActual);
+        }
+        // TODO: Implementación pendiente para deshacerUltimo
+        return Optional.empty();
     }
 }
