@@ -18,18 +18,25 @@ public final class Pendientes {
 
     /** Anota que el archivo cambió en ahoraMs (si ya estaba, actualiza la hora). */
     public void tocar(Path archivo, long ahoraMs) {
-        // TODO T07a
-        throw new UnsupportedOperationException();
+        ultimoCambio.put(archivo, ahoraMs);
     }
 
     /** Saca y devuelve los archivos cuyo último cambio fue hace quietoMs o más (ahoraMs - ultimo >= quietoMs), ordenados por ruta. */
     public List<Path> listos(long ahoraMs) {
-        // TODO T07a
-        throw new UnsupportedOperationException();
+        List<Path> listos = new ArrayList<>();
+        for (Map.Entry<Path, Long> e : ultimoCambio.entrySet()) {
+            if (ahoraMs - e.getValue() >= quietoMs) {
+                listos.add(e.getKey());
+            }
+        }
+        for (Path p : listos) {
+            ultimoCambio.remove(p);
+        }
+        listos.sort(null);
+        return listos;
     }
 
     public int cantidad() {
-        // TODO T07a
-        throw new UnsupportedOperationException();
+        return ultimoCambio.size();
     }
 }
