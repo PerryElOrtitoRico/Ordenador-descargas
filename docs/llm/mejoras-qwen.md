@@ -77,3 +77,9 @@ Conclusión de la comparación (T05b + T05c): misma calidad cuando el pedido es 
 
 ## Método esqueleto también en T06–T08
 Por los resultados de T04–T05, T06–T08 se hacen con el mismo método (esqueleto + subtareas), aunque el cambio se había pedido solo para T04–T05.
+
+| Iteración | Entrada / salida | Segundos | Resultado | Causa probable | Cambio para la siguiente → ¿funcionó? |
+|---|---|---|---|---|---|
+| T06a-1 | 2480 / 1651 | 152 | No compila: `try (Process p = …)` (`Process` no es `AutoCloseable`). `vencidos` y `limpiar` bien. | **Prompt ambiguo de Claude**: el paso decía "`Process p;` dentro de `try`: …", y lo leyó como try-with-resources. | El recorte de errores de compilación también muestra la línea de código. |
+| T06a-2 | 3362 / 1656 | 248 | Compila; **ocultos 3/3**. Fallan sus 3 tests: `Files.createDirectory` sin crear antes `Descargas`. | Error del test propio otra vez. | Probar razonamiento `low` para un error de test. |
+| T06a-3 | 3728 / 4430 (4344 razon.) | 702 | `finish_reason: length` con razonamiento **low**: no devolvió código, y el extractor escribió un `Papelera.java` cortado (11 líneas). | Con entrada >3000 tokens no queda lugar para pensar, ni siquiera en `low`. | El extractor ya no escribe nada si la respuesta está cortada. Razonamiento solo con entrada < ~2500 tokens. Claude escribe los tests (regla: los tests propios que fallan los arregla Claude). |

@@ -30,16 +30,31 @@ class PapeleraTest {
 
     @Test
     void vencidosSoloLosViejos(@TempDir Path home) throws Exception {
-        // TODO T06a
+        Path inst = home.resolve("Descargas/Instaladores");
+        Path viejo = archivo(inst, "viejo.deb", 31);
+        archivo(inst, "nuevo.deb", 2);
+        assertEquals(List.of(viejo), Papelera.vencidos(inst, 30, AHORA));
     }
 
     @Test
     void limpiarUsaElTachoYRespetaSimular(@TempDir Path home) throws Exception {
-        // TODO T06a
+        Path viejo = archivo(home.resolve("Descargas/Instaladores"), "viejo.deb", 31);
+        Config config = new Config("~/Descargas", 5, List.of(
+                new Regla("inst", Accion.MOVER, List.of("deb"), null, null, "~/Descargas/Instaladores", null, 30)));
+        List<Path> tirados = new ArrayList<>();
+        Papelera.Tacho t = tirados::add;
+        assertEquals(List.of(viejo), Papelera.limpiar(config, home, AHORA, t, true));
+        assertEquals(List.of(), tirados);
+        assertEquals(List.of(viejo), Papelera.limpiar(config, home, AHORA, t, false));
+        assertEquals(List.of(viejo), tirados);
+        assertTrue(Files.exists(viejo));
     }
 
     @Test
     void diasCeroNoSeLimpia(@TempDir Path home) throws Exception {
-        // TODO T06a
+        archivo(home.resolve("Descargas/Instaladores"), "viejo.deb", 31);
+        Config config = new Config("~/Descargas", 5, List.of(
+                new Regla("inst", Accion.MOVER, List.of("deb"), null, null, "~/Descargas/Instaladores", null, 0)));
+        assertEquals(List.of(), Papelera.limpiar(config, home, AHORA, p -> fail("no tiene que tirar nada"), false));
     }
 }
