@@ -31,14 +31,33 @@ public final class Vigilante implements AutoCloseable {
 
     /** Bucle hasta close() o interrupción del hilo. */
     public void correr() {
-        // TODO T07b
-        throw new UnsupportedOperationException();
+        try {
+            while (true) {
+                WatchKey key = watchService.poll(200, TimeUnit.MILLISECONDS);
+                if (key != null) {
+                    for (WatchEvent<?> ev : key.pollEvents()) {
+                        if (ev.kind() == StandardWatchEventKinds.OVERFLOW) continue;
+                        Path ruta = carpeta.resolve((Path) ev.context());
+                        if (!Nombres.esTemporal(ruta.getFileName().toString())) pendientes.tocar(ruta, System.currentTimeMillis());
+                    }
+                    key.reset();
+                }
+                for (Path ruta : pendientes.listos(System.currentTimeMillis())) {
+                    if (descargaEnCurso(ruta)) pendientes.tocar(ruta, System.currentTimeMillis());   // sigue esperando
+                    else if (Files.isRegularFile(ruta)) alEstarListo.accept(ruta);
+                }
+            }
+        } catch (ClosedWatchServiceException e) {
+            // se cerró con close(): terminar
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /** true si existe al lado "<nombre>.part" o "<nombre>.crdownload" (Firefox crea el archivo final vacío mientras baja el .part). */
     public static boolean descargaEnCurso(Path archivo) {
-        // TODO T07b
-        throw new UnsupportedOperationException();
+        String n = archivo.getFileName().toString();
+        return Files.exists(archivo.resolveSibling(n + ".part")) || Files.exists(archivo.resolveSibling(n + ".crdownload"));
     }
 
     @Override
