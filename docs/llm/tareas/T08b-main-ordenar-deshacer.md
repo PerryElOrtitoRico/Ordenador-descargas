@@ -2,7 +2,7 @@
 # T08b — Main: ejecutar, ordenar y deshacer
 
 ## Objetivo
-Completar **solo** `ejecutar`, `linea`, `ordenar` y `deshacer` de `Main`, y el test `ordenarSimulandoNoMueve`. Los `// TODO T08c` quedan como están.
+Completar **solo** `ejecutar`, `linea`, `ordenar` y `deshacer` de `Main`, y el test `ordenarSimulandoNoMueve`. Los métodos de T08c (`resumen`, `limpiar`, `vigilar`) quedan como están.
 
 ## Código que ya existe (no lo cambies)
 ```java
@@ -45,8 +45,17 @@ public final class Vigilante implements AutoCloseable {
    - `Path carpeta = Rutas.expandir(config.carpeta(), home);`
    - `switch (a.comando())`: `"ordenar"` → `ordenar(config, home, registro, notificador, a.simular(), out)`; `"deshacer"` → `deshacer(registro, out)`; `"resumen"` → `resumen(carpeta, notificador, out)`; `"limpiar"` → `limpiar(config, home, tacho, a.simular(), out)`; `"vigilar"` → `vigilar(config, home, carpeta, registro, notificador, tacho, a.simular(), out)`.
 
-## `linea(r, simular)`
-`String pre = simular ? "[simulación] " : "";` y `switch (r.estado())`: `MOVIDO` → `pre + "mover: " + r.mensaje()`; `AVISADO` → `pre + "aviso: " + r.mensaje()`; `SIN_REGLA` → `pre + "sin regla: " + r.archivo().getFileName()`; `IGNORADO` → `null`.
+## `linea(r, simular)` (cuerpo completo)
+```java
+String pre = simular ? "[simulación] " : "";
+return switch (r.estado()) {
+    case MOVIDO -> pre + "mover: " + r.mensaje();
+    case AVISADO -> pre + "aviso: " + r.mensaje();
+    case SIN_REGLA -> pre + "sin regla: " + r.archivo().getFileName();
+    case IGNORADO -> null;
+};
+```
+(En un `switch` con flechas no se escribe `return` dentro de cada `case`.)
 
 ## `ordenar(...)`
 `for (Resultado r : new Ordenador(config, home, registro, n, simular).ordenarCarpeta())` → `String l = linea(r, simular); if (l != null) out.println(l);`

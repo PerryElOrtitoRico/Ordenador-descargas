@@ -34,7 +34,14 @@ class MainTest {
 
     @Test
     void ordenarSimulandoNoMueve() throws Exception {
-        // TODO T08b
+        Files.createDirectories(home.resolve("Descargas"));
+        Path foto = home.resolve("Descargas").resolve("foto.png");
+        Files.writeString(foto, "contenido");
+
+        String salida = correr(0, "ordenar", "--simular");
+        assertTrue(salida.contains("[simulación] mover: foto.png"));
+        assertTrue(Files.exists(foto));
+        assertFalse(Files.exists(home.resolve("Imágenes")));
     }
 
     @Test
