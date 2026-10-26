@@ -91,3 +91,17 @@ Por los resultados de T04–T05, T06–T08 se hacen con el mismo método (esquel
 | T08b-2 | 4013 / 1909 | 313 | Respuesta igual (mismo error). | Mismo patrón: con el mismo error, repite. | Reescribir `linea` en la tarea como **cuerpo completo en Java** (`return switch … { case MOVIDO -> …; }`) con la aclaración, y marcar `resumen`/`limpiar`/`vigilar` como de otra subtarea. |
 | T08b-3 | 3907 / 1754 | 261 | **Compila, ocultos 4/4**, firmas e imports iguales, no tocó los métodos marcados. Completó el test de T08c (falla porque `resumen` todavía no está): se vuelve a dejar pendiente. | El código completo en la tarea lo copia. | → funcionó. |
 | T08c-1 | 3508 / 2150 | 286 | Código bien al primer intento: **ocultos 1/1**, imports y firmas iguales, solo tocó lo pedido (en Main ya no había otros `// TODO`). Su test compara con `assertEquals` la salida entera y falla por el salto de línea de `println` (la tarea decía "contiene"). | Error del test propio, otra vez. | Claude cambia la aserción a `contains`. |
+
+## Resumen de lo que funcionó y cuánto cambió
+| Cambio | Probado en | Efecto |
+|---|---|---|
+| Esqueleto con firmas, imports y `// TODO` | T04a en adelante | Firmas iguales en 13/13 subtareas (antes: 3 de 4 tareas con firmas inventadas). |
+| Subtareas de 1–2 métodos | T04a en adelante | Respuestas de ~1000–2000 tokens en vez de 2300–4100; ocultos con su código 31/31 (antes 5/26). |
+| Pasos como código, en orden | T04a-4 en adelante | Destrabó T04a (después de 2 respuestas iguales); T07b y T08b-3 al copiarlos. |
+| Contrato + subtarea + archivo en cada corrección | T04a-2, T04b-3, T08b-3 | Correcciones útiles: 7 de 14 (antes 0 de 11). |
+| Línea de código en el error | T04b, T06a | Necesario pero no suficiente: en T04b hizo falta además razonar. |
+| Razonamiento `medium` | T04b-3 (sí), T04c-2 (no), T06a-3 `low` (no) | Sirve con entrada corta y error de lógica; con entrada larga se queda sin contexto. |
+| Marcar los métodos de otras subtareas sin `TODO` | T05b, T05c, T08b-3 | Respetó el alcance siempre (antes lo violó en T04b, T05a, T08b-1). |
+| Chequeo de imports y de `finish_reason` | T04c, T06a | Evita errores que el compilador muestra tarde o archivos cortados. |
+| PARALLEL 1 en vez de 4 | después de T04c | Sin efecto en la velocidad (10–12 tok/s). |
+| Gemma para lo mecánico | T05c, T06b, T07a, T08a | 4/4 perfectas, ~1 min cada una. |
