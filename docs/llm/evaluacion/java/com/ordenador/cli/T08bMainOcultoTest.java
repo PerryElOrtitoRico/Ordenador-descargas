@@ -20,30 +20,8 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Test oculto de T08: no se le muestra al LLM. */
-class T08CliOcultoTest {
-
-    @Test
-    void parsearValidos() {
-        assertEquals(new Argumentos("ordenar", true), Argumentos.parsear(new String[]{"ordenar", "--simular"}));
-        assertEquals(new Argumentos("ordenar", true), Argumentos.parsear(new String[]{"--simular", "ordenar"}));
-        assertEquals(new Argumentos("vigilar", false), Argumentos.parsear(new String[]{"vigilar"}));
-        assertEquals(new Argumentos("limpiar", true), Argumentos.parsear(new String[]{"limpiar", "--simular"}));
-        assertEquals(new Argumentos("deshacer", false), Argumentos.parsear(new String[]{"deshacer"}));
-        assertEquals(new Argumentos("resumen", false), Argumentos.parsear(new String[]{"resumen"}));
-        assertEquals("ayuda", Argumentos.parsear(new String[]{"-h"}).comando());
-        assertEquals("ayuda", Argumentos.parsear(new String[]{"--help"}).comando());
-        assertEquals("ayuda", Argumentos.parsear(new String[]{"ayuda"}).comando());
-    }
-
-    @Test
-    void parsearInvalidos() {
-        String[][] malos = {{}, {"borrar"}, {"ordenar", "resumen"}, {"deshacer", "--simular"}, {"resumen", "--simular"},
-                {"ordenar", "--rapido"}, {"--simular"}};
-        for (String[] m : malos) {
-            assertThrows(IllegalArgumentException.class, () -> Argumentos.parsear(m), String.join(" ", m));
-        }
-    }
+/** Test oculto de T08b: no se le muestra al LLM. */
+class T08bMainOcultoTest {
 
     @TempDir Path home;
     Map<String, String> env;
@@ -107,25 +85,6 @@ class T08CliOcultoTest {
         assertTrue(deshecho.contains("deshecho: " + destino + " → " + descargas.resolve("plan-franco-2026-10-26.json")), deshecho);
         assertTrue(Files.exists(descargas.resolve("plan-franco-2026-10-26.json")));
         assertTrue(correr(0, "deshacer").contains("No hay movimientos para deshacer."));
-    }
-
-    @Test
-    void resumenYLimpiar() throws Exception {
-        assertTrue(correr(0, "resumen").contains("Descargas está ordenada."));
-        assertEquals(List.of(), avisos);
-        Files.writeString(descargas.resolve("raro.xyz"), "x");
-        assertTrue(correr(0, "resumen").contains("Queda 1 archivo sin ordenar en Descargas:\n- raro.xyz"));
-        assertEquals(1, avisos.size());
-
-        Path inst = Files.createDirectories(home.resolve("Descargas/Instaladores"));
-        Path viejo = Files.writeString(inst.resolve("viejo.deb"), "x");
-        Files.setLastModifiedTime(viejo, FileTime.from(Instant.now().minus(Duration.ofDays(45))));
-        String sim = correr(0, "limpiar", "--simular");
-        assertTrue(sim.contains("[simulación] a la papelera: " + viejo), sim);
-        assertEquals(List.of(), tirados);
-        String real = correr(0, "limpiar");
-        assertTrue(real.contains("a la papelera: " + viejo), real);
-        assertEquals(List.of(viejo), tirados);
     }
 
     @Test

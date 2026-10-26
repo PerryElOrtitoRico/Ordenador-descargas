@@ -1,0 +1,17 @@
+# Servicio de usuario del ORDENADOR. Instalación (la decide el usuario):
+#   mkdir -p ~/.local/lib/ordenador && cp target/ordenador.jar ~/.local/lib/ordenador/
+#   cp systemd/ordenador.service ~/.config/systemd/user/ && systemctl --user daemon-reload
+#   systemctl --user enable --now ordenador.service
+# Para probarlo sin mover nada, cambiar "vigilar" por "vigilar --simular".
+[Unit]
+Description=Ordenador de Descargas
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/java -jar %h/.local/lib/ordenador/ordenador.jar vigilar
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target

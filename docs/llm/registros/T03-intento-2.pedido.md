@@ -1,0 +1,132 @@
+<!-- modelo qwen/qwen3.5-9b, temperatura 0.2, tokens de entrada 1270, max_tokens 6890 -->
+
+## system
+
+Sos un programador Java cuidadoso. Respondé SOLO con los archivos pedidos, completos (nada de '...'), cada uno en su propio bloque de código. La primera línea de cada bloque es un comentario con la ruta del archivo, por ejemplo `// src/main/java/com/ordenador/service/X.java` (o `# systemd/x.service` si no es Java). Sin explicaciones fuera de los bloques.
+
+## user
+
+Al correr `mvn -q test` hay este error:
+
+```
+COMPILATION ERROR:
+ConfigRepo.java:[39,19] cannot find symbol
+  symbol:   method getReglas()
+  location: variable config of type com.ordenador.model.Config
+ConfigRepo.java:[43,35] cannot find symbol
+  symbol:   method getReglas()
+  location: variable config of type com.ordenador.model.Config
+ConfigRepo.java:[44,13] cannot find symbol
+  symbol:   class Regla
+  location: class com.ordenador.service.ConfigRepo
+ConfigRepo.java:[44,33] cannot find symbol
+  symbol:   method getReglas()
+  location: variable config of type com.ordenador.model.Config
+ConfigRepo.java:[54,35] cannot find symbol
+  symbol:   variable Accion
+  location: class com.ordenador.service.ConfigRepo
+ConfigRepo.java:[58,35] cannot find symbol
+  symbol:   variable Accion
+  location: class com.ordenador.service.ConfigRepo
+ConfigRepo.java:[74,58] cannot find symbol
+  symbol:   method getReglas()
+  location: variable config of type com.ordenador.model.Config
+```
+
+Archivo actual:
+
+```
+// src/main/java/com/ordenador/service/ConfigRepo.java
+package com.ordenador.service;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.ordenador.model.Config;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+public final class ConfigRepo {
+    private ConfigRepo() { }
+
+    /** Si el archivo no existe: crea sus carpetas, guarda crear() y la devuelve. Si existe: leer(archivo). */
+    public static Config cargarOCrear(Path archivo) throws IOException {
+        if (!Files.exists(archivo)) {
+            guardar(ReglasPorDefecto.crear(), archivo);
+            return ReglasPorDefecto.crear();
+        }
+        return leer(archivo);
+    }
+
+    /** Lee y valida. Lanza IOException (con la ruta del archivo en el mensaje) si no es JSON válido o no pasa la validación. */
+    public static Config leer(Path archivo) throws IOException {
+        String contenido = new String(Files.readAllBytes(archivo), "UTF-8");
+        
+        if (contenido.trim().isEmpty()) {
+            throw new IOException("Archivo vacío: " + archivo);
+        }
+
+        Gson gson = new Gson();
+        Config config;
+        try {
+            config = gson.fromJson(contenido, Config.class);
+        } catch (Exception e) {
+            throw new IOException("JSON inválido en " + archivo + ": " + e.getMessage(), e);
+        }
+
+        if (config.getReglas() == null) {
+            throw new IOException("Reglas null en " + archivo);
+        }
+
+        for (int i = 0; i < config.getReglas().size(); i++) {
+            Regla regla = config.getReglas().get(i);
+            
+            if (regla.nombre() == null || regla.nombre().trim().isEmpty()) {
+                throw new IOException("Regla " + i + " tiene nombre null o vacío en " + archivo);
+            }
+
+            if (regla.accion() == null) {
+                throw new IOException("Regla " + i + " tiene accion null en " + archivo);
+            }
+
+            if (regla.accion() == Accion.MOVER && (regla.destino() == null || regla.destino().trim().isEmpty())) {
+                throw new IOException("Regla " + i + " MOVER sin destino en " + archivo);
+            }
+
+            if (regla.accion() == Accion.AVISAR && regla.mensaje() == null) {
+                throw new IOException("Regla " + i + " AVISAR sin mensaje en " + archivo);
+            }
+        }
+
+        String carpeta = config.carpeta();
+        int segundosQuieto = config.segundosQuieto();
+
+        if (carpeta == null) {
+            carpeta = "~/Descargas";
+        }
+
+        if (segundosQuieto <= 0) {
+            segundosQuieto = 5;
+        }
+
+        return new Config(carpeta, segundosQuieto, config.getReglas());
+    }
+
+    /** Gson con setPrettyPrinting(), UTF-8. Atómico: escribir "<archivo>.tmp" y Files.move con REPLACE_EXISTING y ATOMIC_MOVE. */
+    public static void guardar(Config config, Path archivo) throws IOException {
+        String contenido = new GsonBuilder()
+                .setPrettyPrinting()
+                .create()
+                .toJson(config);
+
+        Path tmpArchivo = archivo.resolveSibling(archivo.getFileName() + ".tmp");
+        Files.writeString(tmpArchivo, contenido, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.WRITE);
+        
+        Files.move(tmpArchivo, archivo, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+    }
+}
+
+```
+
+Corregí el error. Devolvé el archivo corregido completo (o los archivos, si hay que cambiar más de uno), con la ruta en la primera línea. No cambies las firmas públicas.

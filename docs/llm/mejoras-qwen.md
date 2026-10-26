@@ -54,3 +54,54 @@ Mismo pedido (el de T04a-1, 1128 tokens de entrada, 500 de salida, temperatura 0
 - PARALLEL 1 (`lms unload --all` + `lms load qwen/qwen3.5-9b --context-length 8192 --parallel 1 -y`): 10,3 y 10,5 tok/s. GPU: 4,8 GB.
 
 Conclusión: PARALLEL no era la causa de la lentitud (con un solo pedido a la vez no hay reparto). Queda cargado con PARALLEL 1 (no cambia nada y evita dudas). La velocidad real de este equipo con qwen3.5-9b y contexto 8192 es ~10–12 tok/s, no 21: hay que planificar unos 3–5 minutos por respuesta de 2000 tokens.
+| T05a-1 | 2730 / 2311 | 298 | `procesar` y `avisar` **idénticos a los pasos** de la tarea (ocultos 2/2). Pero completó también `mover` y `ordenarCarpeta` (con errores de compilación) y los tests de T05b–c, y puso los dos archivos **en un solo bloque**. | "Completá solo los que nombra la tarea" no alcanza si el archivo tiene otros `// TODO` a la vista: los toma como parte del pedido. | Claude descarta lo que está fuera de alcance; el extractor separa archivos dentro de un mismo bloque. Corrección del test. |
+| T05a-2 | ~2900 / ~2400 | ~300 | Volvió a completar todo y no compila (`IOException` dentro de una lambda en `ordenarCarpeta`). Su test de T05a usaba `ordenarCarpeta`, que es de T05c. | Mismo problema de alcance. | Se termina a mano (procesar/avisar de qwen, test `temporalIgnoradoYSinRegla` de Claude). **Para T05b–c**: los métodos de otras subtareas ya no dicen `// TODO` sino `// lo completa otra subtarea (T05c): no lo cambies`. |
+| T05b-qwen-1 | 3241 / 2148 | 227 | **`mover` correcto al primer intento, ocultos 4/4, firmas e imports iguales y `ordenarCarpeta` sin tocar** (el marcador nuevo funcionó). Fallan 3 tests propios: esperan el texto `"foto.PNG → home/Imágenes/foto.PNG"` (la palabra `home` literal en vez de la carpeta temporal). | Escribió la ruta "como se ve en la tarea" en lugar de armarla con `home.resolve(...)`. | Corrección con el error. |
+| T05b-qwen-2 | 4337 / 2153 | 346 | Los mismos 3 tests fallando, sin cambios en las aserciones. | Igual que T04c-4: no corrige sus propios tests. | Claude cambia las 3 aserciones a `"… → " + home.resolve(...)`. |
+
+### Comparación con Gemma 4 E4B (`google/gemma-4-e4b-qat`) en T05b
+Mismo pedido (mismo system prompt, extracto del contrato, subtarea y esqueleto), contexto 8192, PARALLEL 1, sin razonamiento. Se descargó qwen (`lms unload --all`) y se cargó Gemma.
+
+| | qwen3.5-9b | Gemma 4 E4B |
+|---|---|---|
+| Velocidad (pedido de prueba, 500 tokens) | 10,3–12,2 tok/s | 14,7–14,9 tok/s (no los ~45 de la memoria: la GPU de 6 GB no lo deja entero) |
+| Intento 1 | 227 s, 2148 tokens; compila; ocultos **4/4**; 3 tests propios mal | 407 s, 3009 tokens (más comentarios: copió cada paso como comentario); **no compila**: le falta `import com.ordenador.model.Movimiento` en el test; `mover` correcto (ocultos 4/4 con el test propio aparte) |
+| Corrección 1 | 346 s; tests propios igual de mal | 198 s, 3021 tokens, entrada 4910 (**7931 de 8192**: casi sin contexto libre); compila; 2 tests propios mal (`"/" + ruta` y una ruta esperada equivocada) |
+| Firmas / alcance | iguales; no tocó T05c | iguales; no tocó T05c |
+
+Conclusión de T05b: con un esqueleto y pasos de código, los dos escriben el método bien; ninguno escribe bien los tests que verifican textos con rutas. Gemma es algo más rápido por token pero escribe ~40 % más tokens, así que tardó más; y sus respuestas largas lo dejan cerca del límite de contexto en las correcciones. Se queda la versión de qwen.
+| T05c-gemma-1 | 3513 / 2936 | 197 | **Perfecto al primer intento**: compila, tests propios bien, ocultos 1/1, firmas e imports iguales, solo tocó `ordenarCarpeta`. 14,9 tok/s. | Subtarea chica con pasos de código: la copia. | Comparar con qwen en el mismo pedido. |
+| T05c-qwen-1 | 3289 / 2628 | 266 | **Perfecto al primer intento** también (ocultos 1/1, tests propios bien). 9,9 tok/s. | Ídem. | Se queda la versión de qwen (es el modelo del experimento); resultado empatado. |
+
+Conclusión de la comparación (T05b + T05c): misma calidad cuando el pedido es un esqueleto con pasos de código; Gemma es ~35 % más rápido por token pero suele escribir más (comentarios por cada paso), así que el tiempo total depende de la subtarea (T05b: qwen ganó; T05c: Gemma ganó). Gemma falló un import en el test de T05b; qwen no. Criterio para lo que queda: **Gemma para subtareas mecánicas cortas** (texto, listas, parseo de argumentos) y **qwen para las que usan APIs de Java menos comunes o hilos** (WatchService, procesos).
+
+## Método esqueleto también en T06–T08
+Por los resultados de T04–T05, T06–T08 se hacen con el mismo método (esqueleto + subtareas), aunque el cambio se había pedido solo para T04–T05.
+
+| Iteración | Entrada / salida | Segundos | Resultado | Causa probable | Cambio para la siguiente → ¿funcionó? |
+|---|---|---|---|---|---|
+| T06a-1 | 2480 / 1651 | 152 | No compila: `try (Process p = …)` (`Process` no es `AutoCloseable`). `vencidos` y `limpiar` bien. | **Prompt ambiguo de Claude**: el paso decía "`Process p;` dentro de `try`: …", y lo leyó como try-with-resources. | El recorte de errores de compilación también muestra la línea de código. |
+| T06a-2 | 3362 / 1656 | 248 | Compila; **ocultos 3/3**. Fallan sus 3 tests: `Files.createDirectory` sin crear antes `Descargas`. | Error del test propio otra vez. | Probar razonamiento `low` para un error de test. |
+| T06a-3 | 3728 / 4430 (4344 razon.) | 702 | `finish_reason: length` con razonamiento **low**: no devolvió código, y el extractor escribió un `Papelera.java` cortado (11 líneas). | Con entrada >3000 tokens no queda lugar para pensar, ni siquiera en `low`. | El extractor ya no escribe nada si la respuesta está cortada. Razonamiento solo con entrada < ~2500 tokens. Claude escribe los tests (regla: los tests propios que fallan los arregla Claude). |
+| T06b-gemma-1 | 1575 / 961 | 57 | **Perfecto al primer intento** con Gemma (criterio: subtarea mecánica de texto y listas): compila, tests propios bien, ocultos 2/2, firmas e imports iguales. 16,9 tok/s. | Subtarea chica y pasos de código. | Seguir con Gemma en T07a (colecciones) y T08a (argumentos). |
+| T07a-gemma-1 | 1390 / 1015 | 65 | **Perfecto al primer intento** con Gemma: ocultos 2/2, tests propios bien. 15,7 tok/s. | Colecciones simples con pasos de código. | T07b (WatchService e hilos) con qwen, por el criterio. |
+| T07b-1 | 2046 / 1174 | 116 | **Perfecto al primer intento** con qwen: `correr` con WatchService, ocultos 3/3 (incluido el caso Firefox con `.part` al lado y el archivo que sigue cambiando), tests propios bien. | El cuerpo entero venía como pseudocódigo casi Java: lo pasó a Java sin errores. | — |
+| T08a-gemma-1 | 1323 / 1010 | 58 | **Perfecto al primer intento** con Gemma: ocultos 2/2, tests propios bien. 17,5 tok/s. | Parseo con pasos de código. | T08b–c (Main, une todo) con qwen. |
+| T08b-1 | 2997 / 1904 | 231 | No compila: `case AVISADO -> return …;` (en un `switch` con flechas no va `return`). Además completó los `// TODO T08c` (**Claude se olvidó de usar el marcador "lo completa otra subtarea"**: se confirma la regla de T05). | La tarea describía `linea` en prosa con flechas ("`MOVIDO` → …"); no sabe la sintaxis del `switch` de expresión. | Corrección con el error. |
+| T08b-2 | 4013 / 1909 | 313 | Respuesta igual (mismo error). | Mismo patrón: con el mismo error, repite. | Reescribir `linea` en la tarea como **cuerpo completo en Java** (`return switch … { case MOVIDO -> …; }`) con la aclaración, y marcar `resumen`/`limpiar`/`vigilar` como de otra subtarea. |
+| T08b-3 | 3907 / 1754 | 261 | **Compila, ocultos 4/4**, firmas e imports iguales, no tocó los métodos marcados. Completó el test de T08c (falla porque `resumen` todavía no está): se vuelve a dejar pendiente. | El código completo en la tarea lo copia. | → funcionó. |
+| T08c-1 | 3508 / 2150 | 286 | Código bien al primer intento: **ocultos 1/1**, imports y firmas iguales, solo tocó lo pedido (en Main ya no había otros `// TODO`). Su test compara con `assertEquals` la salida entera y falla por el salto de línea de `println` (la tarea decía "contiene"). | Error del test propio, otra vez. | Claude cambia la aserción a `contains`. |
+
+## Resumen de lo que funcionó y cuánto cambió
+| Cambio | Probado en | Efecto |
+|---|---|---|
+| Esqueleto con firmas, imports y `// TODO` | T04a en adelante | Firmas iguales en 13/13 subtareas (antes: 3 de 4 tareas con firmas inventadas). |
+| Subtareas de 1–2 métodos | T04a en adelante | Respuestas de ~1000–2000 tokens en vez de 2300–4100; ocultos con su código 31/31 (antes 5/26). |
+| Pasos como código, en orden | T04a-4 en adelante | Destrabó T04a (después de 2 respuestas iguales); T07b y T08b-3 al copiarlos. |
+| Contrato + subtarea + archivo en cada corrección | T04a-2, T04b-3, T08b-3 | Correcciones útiles: 7 de 14 (antes 0 de 11). |
+| Línea de código en el error | T04b, T06a | Necesario pero no suficiente: en T04b hizo falta además razonar. |
+| Razonamiento `medium` | T04b-3 (sí), T04c-2 (no), T06a-3 `low` (no) | Sirve con entrada corta y error de lógica; con entrada larga se queda sin contexto. |
+| Marcar los métodos de otras subtareas sin `TODO` | T05b, T05c, T08b-3 | Respetó el alcance siempre (antes lo violó en T04b, T05a, T08b-1). |
+| Chequeo de imports y de `finish_reason` | T04c, T06a | Evita errores que el compilador muestra tarde o archivos cortados. |
+| PARALLEL 1 en vez de 4 | después de T04c | Sin efecto en la velocidad (10–12 tok/s). |
+| Gemma para lo mecánico | T05c, T06b, T07a, T08a | 4/4 perfectas, ~1 min cada una. |

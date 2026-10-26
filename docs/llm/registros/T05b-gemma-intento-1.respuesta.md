@@ -1,0 +1,282 @@
+```java
+// src/main/java/com/ordenador/service/Ordenador.java
+package com.ordenador.service;
+
+import com.ordenador.model.Accion;
+import com.ordenador.model.Config;
+import com.ordenador.model.Movimiento;
+import com.ordenador.model.Regla;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
+
+/** Aplica a cada archivo la acción de su regla (sección 4 de la especificación). */
+public final class Ordenador {
+
+    private final Config config;
+    private final Path home;
+    private final Registro registro;
+    private final Notificador notificador;
+    private final boolean simular;
+
+    public Ordenador(Config config, Path home, Registro registro, Notificador notificador, boolean simular) {
+        this.config = config;
+        this.home = home;
+        this.registro = registro;
+        this.notificador = notificador;
+        this.simular = simular;
+    }
+
+    /**
+     * Decide qué hacer con el archivo:
+     * no es archivo regular o es temporal → IGNORADO; sin regla → SIN_REGLA;
+     * regla AVISAR → avisar(...); regla MOVER → mover(...).
+     */
+    public Resultado procesar(Path archivo) throws IOException {
+        String nombre = archivo.getFileName().toString();
+        if (!Files.isRegularFile(archivo) || Nombres.esTemporal(nombre)) return new Resultado(archivo, Resultado.Estado.IGNORADO, null, null);
+        Optional<Coincidencia> c = Clasificador.clasificar(nombre, config.reglas());
+        if (c.isEmpty()) return new Resultado(archivo, Resultado.Estado.SIN_REGLA, null, null);
+        if (c.get().regla().accion() == Accion.AVISAR) return avisar(archivo, c.get());
+        return mover(archivo, c.get());
+    }
+
+    /** Regla AVISAR: no mueve; notifica (si no se simula) y devuelve AVISADO con el mensaje. */
+    private Resultado avisar(Path archivo, Coincidencia c) {
+        String palabra = c.palabra() == null ? "" : c.palabra();
+        String mensaje = c.regla().mensaje().replace("{palabra}", palabra);
+        if (!simular) notificador.notificar("Ordenador", archivo.getFileName() + ": " + mensaje);
+        return new Resultado(archivo, Resultado.Estado.AVISADO, null, mensaje);
+    }
+
+    /** Regla MOVER: mueve sin pisar, anota y notifica; simulando, solo devuelve lo que haría. */
+    private Resultado mover(Path archivo, Coincidencia c) throws IOException {
+        Regla regla = c.regla();
+        String nombre = archivo.getFileName().toString();
+        
+        // 2. Path carpeta = Rutas.expandir(c.regla().destino(), home);
+        Path carpeta = Rutas.expandir(regla.destino(), home);
+        
+        // 3. if (carpeta.equals(archivo.getParent())) return new Resultado(archivo, Resultado.Estado.IGNORADO, null, null);
+        if (carpeta.equals(archivo.getParent())) return new Resultado(archivo, Resultado.Estado.IGNORADO, null, null);
+
+        // 4. Path destino = Nombres.nombreLibre(carpeta, nombre);
+        Path destino = Nombres.nombreLibre(carpeta, nombre);
+        
+        // 5. String mensaje = nombre + " → " + destino;
+        String mensaje = nombre + " → " + destino.toString();
+
+        // 6. if (simular) return new Resultado(archivo, Resultado.Estado.MOVIDO, destino, mensaje);
+        if (simular) return new Resultado(archivo, Resultado.Estado.MOVIDO, destino, mensaje);
+
+        // 7. Files.createDirectories(carpeta);
+        Files.createDirectories(carpeta);
+        
+        // 8. Files.move(archivo, destino); (sin REPLACE_EXISTING)
+        Files.move(archivo, destino);
+        
+        // 9. if (c.regla().diasPapelera() > 0) Files.setLastModifiedTime(destino, FileTime.from(Instant.now()));
+        if (regla.diasPapelera() > 0) {
+            Files.setLastModifiedTime(destino, FileTime.from(Instant.now()));
+        }
+        
+        // 10. registro.anotar(new Movimiento(LocalDateTime.now(), archivo, destino));
+        registro.anotar(new Movimiento(LocalDateTime.now(), archivo, destino));
+        
+        // 11. notificador.notificar("Ordenador", mensaje);
+        notificador.notificar("Ordenador", mensaje);
+        
+        // 12. return new Resultado(archivo, Resultado.Estado.MOVIDO, destino, mensaje);
+        return new Resultado(archivo, Resultado.Estado.MOVIDO, destino, mensaje);
+    }
+
+    /**
+     * procesar() de cada archivo regular de primer nivel de Rutas.expandir(config.carpeta(), home),
+     * ordenados por nombre; las subcarpetas no se tocan. Lista vacía si la carpeta no existe.
+     */
+    public List<Resultado> ordenarCarpeta() throws IOException {
+        // lo completa otra subtarea (T05c): no lo cambies
+        throw new UnsupportedOperationException("T05c");
+    }
+}
+```
+
+```java
+// src/test/java/com/ordenador/service/OrdenadorTest.java
+package com.ordenador.service;
+
+import com.ordenador.model.Accion;
+import com.ordenador.model.Config;
+import com.ordenador.model.Regla;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class OrdenadorTest {
+
+    @TempDir Path home;
+    Path descargas;
+    Registro registro;
+    List<String> avisos;
+
+    /** Imágenes → ~/Imágenes; PDF con "FISICA" → aviso. */
+    static final List<Regla> REGLAS = List.of(
+            new Regla("img", Accion.MOVER, List.of("png", "jpg"), null, null, "~/Imágenes", null, 0),
+            new Regla("fac", Accion.AVISAR, List.of("pdf"), null, List.of("FISICA"), null, "Subilo a {palabra}/teoria", 0));
+
+    @BeforeEach
+    void preparar() throws Exception {
+        descargas = Files.createDirectories(home.resolve("Descargas"));
+        registro = new Registro(home.resolve("log.txt"));
+        avisos = new ArrayList<>();
+    }
+
+    /** Un Ordenador sobre home/Descargas con REGLAS y un notificador falso que guarda los cuerpos en avisos. */
+    Ordenador ordenador(boolean simular) {
+        return new Ordenador(new Config("~/Descargas", 5, REGLAS), home, registro, (t, c) -> avisos.add(c), simular);
+    }
+
+    @Test
+    void avisarNoMueve() throws Exception {
+        Path archivo = descargas.resolve("Fisica_TP1.pdf");
+        Files.writeString(archivo, "contenido");
+        
+        Resultado r = ordenador(false).procesar(archivo);
+        
+        assertEquals(Resultado.Estado.AVISADO, r.estado());
+        assertEquals("Subilo a FISICA/teoria", r.mensaje());
+        assertTrue(Files.exists(archivo));
+        assertEquals(List.of("Fisica_TP1.pdf: Subilo a FISICA/teoria"), avisos);
+    }
+
+    @Test
+    void temporalIgnoradoYSinRegla() throws Exception {
+        Path part = Files.writeString(descargas.resolve("video.mp4.part"), "x");
+        Path nada = Files.writeString(descargas.resolve("nada.xyz"), "x");
+        assertEquals(Resultado.Estado.IGNORADO, ordenador(false).procesar(part).estado());
+        assertEquals(Resultado.Estado.SIN_REGLA, ordenador(false).procesar(nada).estado());
+        assertTrue(Files.exists(part));
+        assertTrue(Files.exists(nada));
+        assertEquals(List.of(), avisos);
+    }
+
+    @Test
+    void mueveAnotaYNotifica() throws Exception {
+        // Setup: Create source file
+        Path archivoOrigen = descargas.resolve("foto.PNG");
+        Files.writeString(archivoOrigen, "contenido de la foto");
+
+        // Execute
+        Ordenador ordenador = ordenador(false);
+        Resultado resultado = ordenador.procesar(archivoOrigen);
+
+        // Assert
+        assertEquals(Resultado.Estado.MOVIDO, resultado.estado());
+        
+        // Check destination
+        Path expectedDest = home.resolve("Imágenes/foto.PNG");
+        assertTrue(Files.exists(expectedDest));
+        assertFalse(Files.exists(archivoOrigen));
+        
+        // Check notification
+        assertEquals(1, avisos.size());
+        assertEquals("foto.PNG → /" + expectedDest.toString(), avisos.get(0));
+
+        // Check registry
+        List<Movimiento> movimientos = registro.leer();
+        assertEquals(1, movimientos.size());
+        Movimiento m = movimientos.get(0);
+        assertEquals(archivoOrigen, m.origen());
+        assertEquals(expectedDest, m.destino());
+    }
+
+    @Test
+    void noPisa() throws Exception {
+        // Setup: Create destination file that already exists
+        Path destinoExistente = home.resolve("Imágenes/foto.png");
+        Files.createDirectories(destinoExistente.getParent());
+        Files.writeString(destinoExistente, "viejo");
+
+        // Setup: Create source file
+        Path archivoOrigen = descargas.resolve("foto.png");
+        Files.writeString(archivoOrigen, "nuevo");
+
+        // Execute
+        Ordenador ordenador = ordenador(false);
+        Resultado resultado = ordenador.procesar(archivoOrigen);
+
+        // Assert
+        assertEquals(Resultado.Estado.MOVIDO, resultado.estado());
+        
+        // Check destination name (should be renamed)
+        Path expectedDest = Nombres.nombreLibre(home.resolve("Imágenes"), "foto.png");
+        assertTrue(expectedDest.toString().contains("foto (2).png") || expectedDest.toString().contains("foto (3).png"));
+        
+        // Check that the original file still exists (it was moved, but the target was renamed)
+        assertFalse(Files.exists(archivoOrigen));
+        
+        // Check that the old file content is preserved
+        assertTrue(Files.exists(destinoExistente));
+        assertEquals("viejo", Files.readString(destinoExistente));
+        
+        // Check that the new file content is present at the renamed location
+        assertTrue(Files.exists(expectedDest));
+        assertEquals("nuevo", Files.readString(expectedDest));
+        
+        // Check registry
+        List<Movimiento> movimientos = registro.leer();
+        assertEquals(1, movimientos.size());
+        Movimiento m = movimientos.get(0);
+        assertEquals(archivoOrigen, m.origen());
+        assertEquals(expectedDest, m.destino());
+    }
+
+    @Test
+    void simularNoTocaNada() throws Exception {
+        // Setup: Create source file
+        Path archivoOrigen = descargas.resolve("a.jpg");
+        Files.writeString(archivoOrigen, "contenido");
+
+        // Execute (Simulate = true)
+        Ordenador ordenador = ordenador(true);
+        Resultado resultado = ordenador.procesar(archivoOrigen);
+
+        // Assert
+        assertEquals(Resultado.Estado.MOVIDO, resultado.estado());
+        
+        // Check that the file is NOT moved (still in descargas)
+        assertTrue(Files.exists(archivoOrigen));
+        
+        // Check that the destination directory/file was NOT created/modified
+        Path expectedDest = home.resolve("Imágenes/a.jpg");
+        assertFalse(Files.exists(expectedDest));
+        
+        // Check that no notifications or records were created
+        assertEquals(0, avisos.size());
+        assertTrue(registro.leer().isEmpty());
+    }
+
+    @Test
+    void ordenarCarpeta() throws Exception {
+        // lo completa otra subtarea (T05c): no lo cambies
+    }
+}
+```
+
+<!-- meta: {"segundos": 407.3, "finish_reason": "stop", "usage": {"prompt_tokens": 3413, "completion_tokens": 3009, "total_tokens": 6422, "completion_tokens_details": {"reasoning_tokens": 0}}, "razonamiento": "no"} -->

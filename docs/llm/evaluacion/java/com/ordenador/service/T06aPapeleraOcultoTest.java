@@ -16,8 +16,9 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Test oculto de T06: no se le muestra al LLM. */
-class T06PapeleraResumenOcultoTest {
+/** Test oculto de T06a: no se le muestra al LLM. */
+class T06aPapeleraOcultoTest {
+
 
     private static final Instant AHORA = Instant.parse("2026-10-25T12:00:00Z");
 
@@ -69,24 +70,5 @@ class T06PapeleraResumenOcultoTest {
     @Test
     void gioEsUnTacho() {
         assertNotNull(Papelera.GIO);
-    }
-
-    @Test
-    void sinOrdenar(@TempDir Path d) throws Exception {
-        Path c = Files.createDirectories(d.resolve("Descargas"));
-        for (String n : List.of("b.zip", "a.pdf", "x.part", "y.crdownload", ".oculto", "c.txt")) {
-            Files.writeString(c.resolve(n), "x");
-        }
-        Files.createDirectories(c.resolve("Instaladores"));
-        assertEquals(List.of("a.pdf", "b.zip", "c.txt"), Resumen.sinOrdenar(c));
-        assertEquals(List.of(), Resumen.sinOrdenar(d.resolve("no-existe")));
-    }
-
-    @Test
-    void texto() {
-        assertEquals("Descargas está ordenada.", Resumen.texto(List.of()));
-        assertEquals("Queda 1 archivo sin ordenar en Descargas:\n- a.pdf", Resumen.texto(List.of("a.pdf")));
-        assertEquals("Quedan 3 archivos sin ordenar en Descargas:\n- a.pdf\n- b.zip\n- c.txt",
-                Resumen.texto(List.of("a.pdf", "b.zip", "c.txt")));
     }
 }
