@@ -113,7 +113,41 @@ class OrdenadorTest {
 
     @Test
     void ordenarCarpeta() throws Exception {
-        // TODO T05c
+        Path carpeta = home.resolve("Descargas");
+        Files.createDirectories(carpeta);
+        
+        // Crear archivos de primer nivel
+        Path bPng = carpeta.resolve("b.png");
+        Files.writeString(bPng, "contenido_b");
+        
+        Path aXyz = carpeta.resolve("a.xyz");
+        Files.writeString(aXyz, "contenido_a");
+        
+        // Crear subcarpeta con archivo interno (no debe ser tocado)
+        Path subCarpeta = carpeta.resolve("sub");
+        Files.createDirectories(subCarpeta);
+        Path cPng = subCarpeta.resolve("c.png");
+        Files.writeString(cPng, "contenido_c");
+        
+        // Ejecutar ordenarCarpeta
+        List<Resultado> resultados = ordenador(false).ordenarCarpeta();
+        
+        // Debería haber 2 resultados: primero 'a.xyz' (SIN_REGLA), luego 'b.png' (MOVIDO)
+        assertEquals(2, resultados.size());
+        
+        // Verificar primer resultado: a.xyz
+        assertEquals(Resultado.Estado.SIN_REGLA, resultados.get(0).estado());
+        assertEquals(aXyz, resultados.get(0).archivo());
+        assertNull(resultados.get(0).destino());
+        assertNull(resultados.get(0).mensaje());
+        
+        // Verificar segundo resultado: b.png movido a ~/Imágenes/b.png
+        assertEquals(Resultado.Estado.MOVIDO, resultados.get(1).estado());
+        assertEquals(bPng, resultados.get(1).archivo());
+        assertTrue(Files.exists(home.resolve("Imágenes").resolve("b.png")));
+        assertFalse(Files.exists(carpeta.resolve("b.png")));
+        
+        // Verificar que sub/c.png sigue donde estaba
+        assertTrue(Files.exists(cPng));
     }
 }
-

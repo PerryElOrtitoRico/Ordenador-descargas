@@ -76,8 +76,17 @@ public final class Ordenador {
      * ordenados por nombre; las subcarpetas no se tocan. Lista vacía si la carpeta no existe.
      */
     public List<Resultado> ordenarCarpeta() throws IOException {
-        // TODO T05c
-        throw new UnsupportedOperationException();
+        Path carpeta = Rutas.expandir(config.carpeta(), home);
+        if (!Files.isDirectory(carpeta)) return new ArrayList<>();
+        
+        try (Stream<Path> s = Files.list(carpeta)) {
+            List<Path> archivos = s.filter(Files::isRegularFile).sorted().toList();
+            List<Resultado> resultados = new ArrayList<>();
+            for (Path p : archivos) {
+                resultados.add(procesar(p));
+            }
+            return resultados;
+        }
     }
 }
 
