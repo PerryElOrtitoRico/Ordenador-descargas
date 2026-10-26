@@ -14,8 +14,14 @@ public final class Resumen {
 
     /** Nombres de los archivos regulares de primer nivel que no son temporales, en orden alfabético. Vacía si la carpeta no existe. */
     public static List<String> sinOrdenar(Path carpeta) throws IOException {
-        // TODO T06b
-        throw new UnsupportedOperationException();
+        if (!Files.isDirectory(carpeta)) return new ArrayList<>();
+        try (Stream<Path> s = Files.list(carpeta)) {
+            return s.filter(Files::isRegularFile)
+                    .map(p -> p.getFileName().toString())
+                    .filter(n -> !Nombres.esTemporal(n))
+                    .sorted()
+                    .toList();
+        }
     }
 
     /**
@@ -24,7 +30,13 @@ public final class Resumen {
      * Varios → "Quedan 3 archivos sin ordenar en Descargas:\n- a.pdf\n- b.zip\n- c.txt" (sin "\n" al final).
      */
     public static String texto(List<String> nombres) {
-        // TODO T06b
-        throw new UnsupportedOperationException();
+        if (nombres.isEmpty()) {
+            return "Descargas está ordenada.";
+        }
+        StringBuilder sb = new StringBuilder(nombres.size() == 1 ? "Queda 1 archivo sin ordenar en Descargas:" : "Quedan " + nombres.size() + " archivos sin ordenar en Descargas:");
+        for (String nombre : nombres) {
+            sb.append("\n- ").append(nombre);
+        }
+        return sb.toString();
     }
 }
