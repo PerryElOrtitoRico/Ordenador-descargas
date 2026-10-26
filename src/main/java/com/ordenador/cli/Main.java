@@ -36,7 +36,7 @@ public final class Main {
 
     public static void main(String[] args) {
         System.exit(ejecutar(args, System.getenv(), Path.of(System.getProperty("user.home")),
-                System.out, new NotifySend(), Papelera.GIO));
+                System.out, new AvisoEscritorio(), Papelera.GIO));
     }
 
     /** Código de salida: 0 bien, 1 error (IOException o IllegalArgumentException al ejecutar), 2 argumentos inválidos. */

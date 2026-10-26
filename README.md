@@ -4,7 +4,7 @@ Servicio de consola para Debian + KDE que vigila `~/Descargas` y manda cada arch
 
 - Espera a que el archivo deje de cambiar (5 s) y no toca temporales (`.part`, `.crdownload`, `.tmp`, ocultos) ni lo que Firefox todavía está bajando.
 - Aplica la **primera** regla que coincide. Si el destino ya tiene un archivo con ese nombre, no lo pisa: `nombre (2).ext`.
-- Notifica cada movimiento en KDE (`notify-send`) y lo anota para poder deshacerlo.
+- Notifica cada movimiento en KDE (`kdialog`, o `notify-send` si no está) y lo anota para poder deshacerlo.
 
 Lo programaron dos LLM locales (qwen3.5-9b y Gemma 4 E4B) con Claude diseñando y evaluando: ver [`docs/llm/README.md`](docs/llm/README.md) y [`docs/llm/mejoras-qwen.md`](docs/llm/mejoras-qwen.md).
 
@@ -31,7 +31,7 @@ flowchart LR
 ```
 
 ## Requisitos
-OpenJDK 21, Maven 3.9, `gio` y `notify-send` (vienen con el escritorio).
+OpenJDK 21, Maven 3.9, `gio` y `kdialog` (vienen con KDE).
 
 ## Compilar, testear y ejecutar
 ```bash
@@ -69,4 +69,4 @@ Para probarlo sin mover nada, en `ExecStart` agregá `--simular` después de `vi
 ## Estructura
 - `model`: `Regla`, `Config`, `Accion`, `Movimiento`.
 - `service`: `Nombres`, `Clasificador`, `ConfigRepo` + `ReglasPorDefecto`, `Rutas`, `Registro`, `Ordenador`, `Papelera`, `Resumen`, `Pendientes`, `Vigilante`.
-- `cli`: `Main`, `Argumentos`, `NotifySend`.
+- `cli`: `Main`, `Argumentos`, `AvisoEscritorio`.
