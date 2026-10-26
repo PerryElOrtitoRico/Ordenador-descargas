@@ -9,7 +9,7 @@ public final class NotifySend implements Notificador {
 
     @Override
     public void notificar(String titulo, String cuerpo) {
-        // TODO T08c
-        throw new UnsupportedOperationException();
+        try { new ProcessBuilder("notify-send", "-a", "Ordenador", "-i", "folder-downloads", titulo, cuerpo).start(); } catch (IOException e) { System.err.println("No se pudo notificar: " + e.getMessage()); }
     }
 }
+

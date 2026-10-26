@@ -46,6 +46,13 @@ class MainTest {
 
     @Test
     void resumenConUnArchivo() throws Exception {
-        // TODO T08c
+        Files.createDirectories(home.resolve("Descargas"));
+        Path raro = home.resolve("Descargas").resolve("raro.xyz");
+        Files.writeString(raro, "contenido");
+
+        String salida = correr(0, "resumen");
+        assertTrue(salida.contains("Queda 1 archivo sin ordenar en Descargas:\n- raro.xyz"), salida);
+        assertEquals(1, avisos.size());
     }
 }
+

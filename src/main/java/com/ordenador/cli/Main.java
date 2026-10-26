@@ -103,19 +103,35 @@ public final class Main {
     }
 
     private static void resumen(Path carpeta, Notificador n, PrintStream out) throws IOException {
-        // TODO T08c
-        throw new UnsupportedOperationException();
+        List<String> nombres = Resumen.sinOrdenar(carpeta);
+        String texto = Resumen.texto(nombres);
+        out.println(texto);
+        if (!nombres.isEmpty()) n.notificar("Ordenador", texto);
     }
 
     private static void limpiar(Config config, Path home, Papelera.Tacho tacho, boolean simular, PrintStream out)
             throws IOException {
-        // TODO T08c
-        throw new UnsupportedOperationException();
+        String pre = simular ? "[simulación] " : "";
+        for (Path p : Papelera.limpiar(config, home, Instant.now(), tacho, simular)) {
+            out.println(pre + "a la papelera: " + p);
+        }
     }
 
     private static void vigilar(Config config, Path home, Path carpeta, Registro registro, Notificador n,
                                 Papelera.Tacho tacho, boolean simular, PrintStream out) throws IOException {
-        // TODO T08c
-        throw new UnsupportedOperationException();
+        out.println("Vigilando " + carpeta + (simular ? " (simulación: no se mueve nada)" : ""));
+        limpiar(config, home, tacho, simular, out);
+        Ordenador ordenador = new Ordenador(config, home, registro, n, simular);
+        try (Vigilante v = new Vigilante(carpeta, config.segundosQuieto() * 1000L, archivo -> {
+            try {
+                String l = linea(ordenador.procesar(archivo), simular);
+                if (l != null) out.println(l);
+            } catch (IOException e) {
+                out.println("Error con " + archivo + ": " + e.getMessage());
+            }
+        })) {
+            v.correr();
+        }
     }
 }
+
